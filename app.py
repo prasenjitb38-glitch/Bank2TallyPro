@@ -1324,6 +1324,11 @@ def parse_file(name, raw, bank_ledger, password=""):
             }
         grid = extract_pdf_grid(raw, password)
         return prepare_grid(name, grid, bank_ledger)
+    if suffix == ".xls":
+        # Old bank exports are binary XLS files.  Convert them with the
+        # installed Excel application before openpyxl reads the worksheet.
+        raw = legacy_xls_to_xlsx(raw)
+        suffix = ".xlsx"
     if suffix in {".xlsx", ".xlsm"}:
         wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
         grid = list(wb.active.iter_rows(values_only=True))
