@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import base64
 import hashlib
 import hmac
 import html
@@ -105,7 +106,7 @@ else:
     MAPPINGS_PATH = APP_DIR / "saved_mappings.json"
 # Render (and similar hosts) inject PORT and require binding on all interfaces;
 # local Windows use keeps the previous loopback-only default.
-HOST = os.environ.get("HOST", "127.0.0.1")
+HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8765"))
 LICENSE_STORE = LicenseStore(DATA_DIR)
 PENDING_CHARGES = {}
@@ -368,6 +369,8 @@ def legacy_xls_to_xlsx(raw):
 TALLY_HTTP_URL = "http://127.0.0.1:9000"
 TALLY_HTTP_HOST = "127.0.0.1"
 TALLY_HTTP_PORT = 9000
+TALLY_BRIDGE_URL = os.environ.get("TALLY_BRIDGE_URL", "").rstrip("/")
+TALLY_BRIDGE_TOKEN = os.environ.get("TALLY_BRIDGE_TOKEN", "")
 
 
 def tally_log(message):
@@ -397,6 +400,25 @@ def tally_post(raw, timeout=25, purpose="Tally export"):
     Logs URL, request size, reachability, and exact network/response outcome.
     """
     payload = raw if isinstance(raw, (bytes, bytearray)) else gst_text(raw).encode("utf-8")
+    if TALLY_BRIDGE_URL:
+        bridge_request = urllib.request.Request(
+            TALLY_BRIDGE_URL + "/tally", data=payload,
+            headers={
+                "Content-Type": "text/xml; charset=utf-8",
+                "X-Bridge-Token": TALLY_BRIDGE_TOKEN,
+            }, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(bridge_request, timeout=timeout) as response:
+                body = response.read().decode("utf-8", errors="replace")
+            if not body.strip():
+                raise ValueError(f"Local Tally Connector returned an empty response for {purpose}.")
+            return body
+        except urllib.error.URLError as exc:
+            raise ValueError(
+                f"Local Tally Connector is not reachable for {purpose}. "
+                "Start the connector and check its tunnel URL and token."
+            ) from exc
     reachable, reach_detail = tally_port_reachable()
     tally_log(f"{purpose} | URL={TALLY_HTTP_URL} | port_reachable={reachable} | {reach_detail}")
     tally_log(f"{purpose} | request_bytes={len(payload)} | timeout={timeout}s")
@@ -465,10 +487,23 @@ def tally_post(raw, timeout=25, purpose="Tally export"):
 
 def tally_test_connection(timeout=10):
     """Probe port 9000 and request a lightweight Company collection before heavy sync."""
-    reachable, reach_detail = tally_port_reachable()
+    if TALLY_BRIDGE_URL:
+        try:
+            health = urllib.request.Request(
+                TALLY_BRIDGE_URL + "/health",
+                headers={"X-Bridge-Token": TALLY_BRIDGE_TOKEN}, method="GET"
+            )
+            with urllib.request.urlopen(health, timeout=timeout) as response:
+                reachable = response.status == 200
+            reach_detail = f"Local Tally Connector reachable at {TALLY_BRIDGE_URL}"
+        except Exception as exc:
+            reachable = False
+            reach_detail = f"Local Tally Connector not reachable ({type(exc).__name__}: {exc})"
+    else:
+        reachable, reach_detail = tally_port_reachable()
     result = {
         "ok": False,
-        "url": TALLY_HTTP_URL,
+        "url": TALLY_BRIDGE_URL or TALLY_HTTP_URL,
         "port": TALLY_HTTP_PORT,
         "port_reachable": reachable,
         "port_detail": reach_detail,
@@ -1186,6 +1221,26 @@ def prepare_grid(name, grid, bank_ledger):
     return [], {"mapping_required": True, "filename": name, "grid": grid, "header_row": header_row}
 
 
+def bridge_scanned_ocr(raw, name="statement.pdf"):
+    request = urllib.request.Request(
+        TALLY_BRIDGE_URL + "/ocr",
+        data=json.dumps({"name": name, "data": base64.b64encode(raw).decode("ascii")}).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Bridge-Token": TALLY_BRIDGE_TOKEN},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        if result.get("error"):
+            raise ValueError(result["error"])
+        return result
+    except urllib.error.URLError as exc:
+        raise ValueError(
+            "Local Tally Connector is not reachable for scanned-PDF OCR. "
+            "Start the connector and check its tunnel URL and token."
+        ) from exc
+
+
 def parse_file(name, raw, bank_ledger, password=""):
     suffix = Path(name).suffix.lower()
     if suffix == ".pdf":
@@ -1226,6 +1281,14 @@ def parse_file(name, raw, bank_ledger, password=""):
                     )
             meta["format"] = "ICICI PDF (automatic mapping)"
             return rows, meta
+        if not text.strip() and TALLY_BRIDGE_URL:
+            remote = bridge_scanned_ocr(raw, name)
+            rows = remote.get("rows", [])
+            return [classify(row, bank_ledger) for row in rows], {
+                "opening": remote.get("opening", 0),
+                "closing": remote.get("closing", 0),
+                "format": "Scanned PDF (Local Bridge OCR)",
+            }
         if not text.strip():
             rows, opening, closing = parse_scanned_bank_pdf(
                 raw, APP_DIR / "windows_ocr.ps1"

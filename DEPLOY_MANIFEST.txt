@@ -1,0 +1,17 @@
+Upload these items to the private GitHub repository:
+  app.py
+  generic_mapping.py
+  scanned_bank_ocr.py
+  license_system.py
+  tally_bridge.py
+  windows_ocr.ps1
+  requirements.txt
+  render.yaml
+  Start_Tally_Bridge.bat
+  Start_Hybrid_Bridge.bat
+  HYBRID_BRIDGE_README.txt
+  Generate_Bridge_Token.ps1
+  static/ (all files)
+
+Do not upload bank statements, GST workbooks, SQLite databases, login/session
+files, import history, logs, XML exports, or license state files.
