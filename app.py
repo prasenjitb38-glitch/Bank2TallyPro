@@ -1273,6 +1273,38 @@ def bridge_scanned_ocr(raw, name="statement.pdf"):
         ) from exc
 
 
+def parse_bank_of_baroda_pdf(text, bank_ledger):
+    """Read Bank of Baroda's two-line statement table without column mapping."""
+    record_start = re.compile(
+        r"(?m)^(?P<balance>[\d,]+\.\d{2})(?P<serial>\d+)\s+"
+        r"(?P<date>\d{2}-\d{2}-\d{4})\s+(?P<value_date>\d{2}-\d{2}-\d{4})\s+"
+    )
+    matches = list(record_start.finditer(text))
+    rows = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        content = re.sub(r"\s+", " ", text[match.end():end]).split("This is a computer-generated statement", 1)[0].strip()
+        amounts = re.match(r"^(?P<particulars>.*?)\s+(?P<debit>[\d,]+\.\d{2}|-)\s+(?P<credit>[\d,]+\.\d{2}|-)$", content)
+        if not amounts:
+            continue
+        debit = 0 if amounts["debit"] == "-" else number(amounts["debit"])
+        credit = 0 if amounts["credit"] == "-" else number(amounts["credit"])
+        if not (debit or credit):
+            continue
+        rows.append(classify({
+            "date": match["date"],
+            "value_date": match["value_date"],
+            "particulars": amounts["particulars"].strip(),
+            "debit": debit,
+            "credit": credit,
+            "balance": number(match["balance"]),
+        }, bank_ledger))
+    if not rows:
+        raise ValueError("Bank of Baroda transaction rows were not found.")
+    opening_match = re.search(r"(?m)^(?P<opening>[\d,]+\.\d{2})1\s+\d{2}-\d{2}-\d{4}\s+Opening Balance", text)
+    return rows, number(opening_match["opening"]) if opening_match else 0, rows[-1].get("balance", 0)
+
+
 def parse_file(name, raw, bank_ledger, password=""):
     suffix = Path(name).suffix.lower()
     if suffix == ".pdf":
@@ -1300,6 +1332,9 @@ def parse_file(name, raw, bank_ledger, password=""):
         ):
             rows, opening, closing = parse_pnb_cc_statement(text, bank_ledger)
             return rows, {"opening": opening, "closing": closing, "format": "PNB CC PDF"}
+        if "Account Statement from" in text and "Description Cheque" in text and "Sr.No Transaction" in text:
+            rows, opening, closing = parse_bank_of_baroda_pdf(text, bank_ledger)
+            return rows, {"opening": opening, "closing": closing, "format": "Bank of Baroda PDF"}
         if "S No." in text and "Transaction Remarks" in text and "icici" in text.lower():
             rows, meta = prepare_grid(name, extract_pdf_grid(raw, password), bank_ledger)
             remarks = icici_text_remarks(text)
