@@ -6674,6 +6674,11 @@ async function upload(files) {
     bankLedgerInput.focus();
     return;
   }
+  // A new upload starts a new statement review. Keeping prior rows here can
+  // duplicate vouchers when a user re-uploads the same corrected statement.
+  rows = [];
+  statementSummaries = [];
+  statementSequence = 0;
   showMessage("Processing statement...");
   setProgress(0, "Starting upload...");
   for (const file of files) {
