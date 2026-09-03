@@ -9,6 +9,7 @@ import io
 import json
 import os
 import re
+import queue
 import shutil
 import socket
 import sqlite3
@@ -369,8 +370,13 @@ def legacy_xls_to_xlsx(raw):
 TALLY_HTTP_URL = "http://127.0.0.1:9000"
 TALLY_HTTP_HOST = "127.0.0.1"
 TALLY_HTTP_PORT = 9000
-TALLY_BRIDGE_URL = os.environ.get("TALLY_BRIDGE_URL", "").rstrip("/")
-TALLY_BRIDGE_TOKEN = os.environ.get("TALLY_BRIDGE_TOKEN", "")
+# The Tally computer opens the connection to Render.  Render never needs a
+# tunnel URL or an inbound address for that computer.
+TALLY_CONNECTOR_ID = os.environ.get("TALLY_CONNECTOR_ID", "primary")
+TALLY_CONNECTOR_TOKEN = os.environ.get("TALLY_CONNECTOR_TOKEN", "")
+CONNECTOR_COMMANDS = queue.Queue()
+CONNECTOR_PENDING = {}
+CONNECTOR_LOCK = threading.Lock()
 
 
 def tally_log(message):
@@ -383,6 +389,33 @@ def tally_log(message):
             handle.write(line + "\n")
     except OSError:
         pass
+
+
+def connector_authorized(headers, connector_id):
+    return (
+        bool(TALLY_CONNECTOR_TOKEN)
+        and connector_id == TALLY_CONNECTOR_ID
+        and hmac.compare_digest(headers.get("X-Connector-Token", ""), TALLY_CONNECTOR_TOKEN)
+    )
+
+
+def connector_request(kind, payload, timeout=120):
+    """Send work to the Windows Connector and wait for its outbound reply."""
+    if not TALLY_CONNECTOR_TOKEN:
+        raise ValueError("Tally Connector is not configured on Render. Set TALLY_CONNECTOR_TOKEN.")
+    command_id = str(uuid.uuid4())
+    pending = {"event": threading.Event(), "result": None}
+    with CONNECTOR_LOCK:
+        CONNECTOR_PENDING[command_id] = pending
+    CONNECTOR_COMMANDS.put({"id": command_id, "kind": kind, **payload})
+    if not pending["event"].wait(timeout):
+        with CONNECTOR_LOCK:
+            CONNECTOR_PENDING.pop(command_id, None)
+        raise ValueError("Tally Connector is offline or did not respond in time. Start it on the Tally computer.")
+    result = pending["result"] or {}
+    if not result.get("ok"):
+        raise ValueError(result.get("error") or "Tally Connector request failed.")
+    return result
 
 
 def tally_port_reachable(timeout=2.0):
@@ -400,25 +433,12 @@ def tally_post(raw, timeout=25, purpose="Tally export"):
     Logs URL, request size, reachability, and exact network/response outcome.
     """
     payload = raw if isinstance(raw, (bytes, bytearray)) else gst_text(raw).encode("utf-8")
-    if TALLY_BRIDGE_URL:
-        bridge_request = urllib.request.Request(
-            TALLY_BRIDGE_URL + "/tally", data=payload,
-            headers={
-                "Content-Type": "text/xml; charset=utf-8",
-                "X-Bridge-Token": TALLY_BRIDGE_TOKEN,
-            }, method="POST",
-        )
-        try:
-            with urllib.request.urlopen(bridge_request, timeout=timeout) as response:
-                body = response.read().decode("utf-8", errors="replace")
-            if not body.strip():
-                raise ValueError(f"Local Tally Connector returned an empty response for {purpose}.")
-            return body
-        except urllib.error.URLError as exc:
-            raise ValueError(
-                f"Local Tally Connector is not reachable for {purpose}. "
-                "Start the connector and check its tunnel URL and token."
-            ) from exc
+    if TALLY_CONNECTOR_TOKEN:
+        result = connector_request("tally", {"xml": payload.decode("utf-8", errors="replace"), "timeout": timeout}, timeout + 15)
+        body = result.get("body", "")
+        if not body.strip():
+            raise ValueError(f"Tally Connector returned an empty response for {purpose}.")
+        return body
     reachable, reach_detail = tally_port_reachable()
     tally_log(f"{purpose} | URL={TALLY_HTTP_URL} | port_reachable={reachable} | {reach_detail}")
     tally_log(f"{purpose} | request_bytes={len(payload)} | timeout={timeout}s")
@@ -487,23 +507,19 @@ def tally_post(raw, timeout=25, purpose="Tally export"):
 
 def tally_test_connection(timeout=10):
     """Probe port 9000 and request a lightweight Company collection before heavy sync."""
-    if TALLY_BRIDGE_URL:
+    if TALLY_CONNECTOR_TOKEN:
         try:
-            health = urllib.request.Request(
-                TALLY_BRIDGE_URL + "/health",
-                headers={"X-Bridge-Token": TALLY_BRIDGE_TOKEN}, method="GET"
-            )
-            with urllib.request.urlopen(health, timeout=timeout) as response:
-                reachable = response.status == 200
-            reach_detail = f"Local Tally Connector reachable at {TALLY_BRIDGE_URL}"
+            result = connector_request("health", {}, timeout)
+            reachable = bool(result.get("reachable"))
+            reach_detail = result.get("detail", "Tally Connector responded")
         except Exception as exc:
             reachable = False
-            reach_detail = f"Local Tally Connector not reachable ({type(exc).__name__}: {exc})"
+            reach_detail = str(exc)
     else:
         reachable, reach_detail = tally_port_reachable()
     result = {
         "ok": False,
-        "url": TALLY_BRIDGE_URL or TALLY_HTTP_URL,
+        "url": "Outbound Connector" if TALLY_CONNECTOR_TOKEN else TALLY_HTTP_URL,
         "port": TALLY_HTTP_PORT,
         "port_reachable": reachable,
         "port_detail": reach_detail,
@@ -1222,6 +1238,14 @@ def prepare_grid(name, grid, bank_ledger):
 
 
 def bridge_scanned_ocr(raw, name="statement.pdf"):
+    if TALLY_CONNECTOR_TOKEN:
+        return connector_request("ocr", {
+            "name": name, "data": base64.b64encode(raw).decode("ascii"),
+        }, timeout=180)
+    # Kept as a clear failure for deployments that have not yet configured
+    # their outbound Connector.
+    raise ValueError("Windows OCR requires the outbound Tally Connector.")
+    """Legacy tunnel implementation retained below for migration reference."""
     request = urllib.request.Request(
         TALLY_BRIDGE_URL + "/ocr",
         data=json.dumps({"name": name, "data": base64.b64encode(raw).decode("ascii")}).encode("utf-8"),
@@ -1281,7 +1305,7 @@ def parse_file(name, raw, bank_ledger, password=""):
                     )
             meta["format"] = "ICICI PDF (automatic mapping)"
             return rows, meta
-        if not text.strip() and TALLY_BRIDGE_URL:
+        if not text.strip() and TALLY_CONNECTOR_TOKEN:
             remote = bridge_scanned_ocr(raw, name)
             rows = remote.get("rows", [])
             return [classify(row, bank_ledger) for row in rows], {
@@ -11872,10 +11896,41 @@ class Handler(SimpleHTTPRequestHandler):
             # Client already gone (refresh / close / aborted fetch). Response is dropped.
             return False
         return True
+    def do_GET(self):
+        # Long-poll endpoint: the Windows Connector calls this endpoint; no
+        # request is ever made from Render to the customer's computer.
+        if self.path.startswith("/api/connector/poll"):
+            from urllib.parse import parse_qs, urlparse
+            connector_id = parse_qs(urlparse(self.path).query).get("id", [""])[0]
+            if not connector_authorized(self.headers, connector_id):
+                self.send_json(401, {"error": "Connector authentication failed."})
+                return
+            try:
+                command = CONNECTOR_COMMANDS.get(timeout=25)
+            except queue.Empty:
+                command = None
+            self.send_json(200, {"command": command})
+            return
+        super().do_GET()
     def do_POST(self):
         global ACCOUNT_LOGGED_IN
         try:
             payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
+            if self.path == "/api/connector/result":
+                connector_id = str(payload.get("connector_id", ""))
+                if not connector_authorized(self.headers, connector_id):
+                    self.send_json(401, {"error": "Connector authentication failed."})
+                    return
+                command_id = str(payload.get("command_id", ""))
+                with CONNECTOR_LOCK:
+                    pending = CONNECTOR_PENDING.pop(command_id, None)
+                if not pending:
+                    self.send_json(404, {"error": "Command expired or unknown."})
+                    return
+                pending["result"] = payload.get("result") or {}
+                pending["event"].set()
+                self.send_json(200, {"accepted": True})
+                return
             if self.path == "/api/shutdown":
                 self.send_json(200, {"closed": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()

@@ -7,7 +7,5 @@ services:
     envVars:
       - key: HOST
         value: 0.0.0.0
-      - key: TALLY_BRIDGE_URL
-        sync: false
-      - key: TALLY_BRIDGE_TOKEN
+      - key: TALLY_CONNECTOR_TOKEN
         sync: false
