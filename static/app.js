@@ -6674,11 +6674,6 @@ async function upload(files) {
     bankLedgerInput.focus();
     return;
   }
-  // A new upload starts a new statement review. Keeping prior rows here can
-  // duplicate vouchers when a user re-uploads the same corrected statement.
-  rows = [];
-  statementSummaries = [];
-  statementSequence = 0;
   showMessage("Processing statement...");
   setProgress(0, "Starting upload...");
   for (const file of files) {
@@ -6739,7 +6734,7 @@ async function processPackedFile(packed) {
       showMessage(`${packed.name}: mapping cancelled.`);
       return;
     }
-    prepareStatementRows(mappedRows);
+    prepareStatementRows(mappedRows, packed.name);
     const duplicates = addUniqueRows(mappedRows);
     rememberStatementBalance(mappedRows, fileResult);
     recalculateAllStatementAmounts();
@@ -6753,7 +6748,7 @@ async function processPackedFile(packed) {
     await refreshLicense();
     return;
   }
-  prepareStatementRows(data.rows);
+  prepareStatementRows(data.rows, packed.name);
   const duplicates = addUniqueRows(data.rows);
   rememberStatementBalance(data.rows, fileResult);
   recalculateAllStatementAmounts();
@@ -7048,10 +7043,21 @@ function recalculateAllStatementAmounts() {
   }
 }
 
-function prepareStatementRows(fileRows) {
+function prepareStatementRows(fileRows, sourceName = "") {
+  const normalizedName = String(sourceName || "").trim().toLowerCase();
+  if (normalizedName) {
+    const replacedIds = new Set(rows
+      .filter(row => row._statementFile === normalizedName)
+      .map(row => row._statementId));
+    if (replacedIds.size) {
+      rows = rows.filter(row => !replacedIds.has(row._statementId));
+      statementSummaries = statementSummaries.filter(item => !replacedIds.has(item.statementId));
+    }
+  }
   const statementId = ++statementSequence;
   chronologicalRows(fileRows).forEach((row, order) => {
     row._statementId = statementId;
+    row._statementFile = normalizedName;
     row._statementOrder = order;
     const hasBalance = row.balance_available === true ||
       (row.balance !== null && row.balance !== undefined && row.balance !== "");
