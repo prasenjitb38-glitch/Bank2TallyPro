@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bank2Tally Suite v1.7.0</title><link rel="stylesheet" href="/style.css?v=1.7.0"><link rel="stylesheet" href="/review-fixes.css?v=1.7.0"><link rel="stylesheet" href="/v165.css?v=1.7.61-purchase-skipped-review">
+</head>
+<body>
+  <header><div class="brand-area"><img class="brand-logo" src="/bank2tally-logo.png?v=1.7.0" alt="Bank2Tally"><div><div class="brand">Bank<span>2</span>Tally</div><p>Offline statement review and TallyPrime voucher preparation</p></div></div><div class="header-actions"><button id="openTallyConnector" class="header-button tally-corner-button" type="button"><i></i><span id="dashboardTallyStatus">Connect Tally</span></button><div id="customerBadge" class="customer-badge hidden"><small id="customerBusiness"></small><strong id="customerName"></strong></div><div class="credit-pill"><small id="licensePlan">Trial</small><strong><span id="creditRemaining">50</span> credits</strong></div><button id="licenseBtn" class="header-button primary-small">Buy / Activate</button><div class="offline"><i></i> Data stays on this computer</div><button id="logoutBtn" class="header-button hidden">Logout</button><button id="refreshBtn" class="header-button" title="Refresh Bank2Tally">↻ Refresh</button><button id="closeBtn" class="header-button danger" title="Close Bank2Tally">Close</button></div></header>
+  <main>
+    <section id="moduleDashboard" class="module-dashboard">
+      <aside class="dashboard-rail" aria-label="Quick dashboard navigation">
+        <div class="rail-title"><b>B2T</b><small>Dashboard</small></div>
+        <button type="button" data-dashboard-open="#openBankModule"><span>🏦</span><small>Bank</small></button>
+        <button type="button" data-dashboard-open="#openGstModule"><span>⚖</span><small>GSTR2</small></button>
+        <button type="button" data-dashboard-open="#openGstReconModule"><span>✓</span><small>Recon</small></button>
+        <button type="button" data-dashboard-open="#openSalesModule"><span>↗</span><small>Sales</small></button>
+        <button type="button" data-dashboard-open="#openBulkSalesModule"><span>＋</span><small>Bulk</small></button>
+        <button type="button" data-dashboard-open="#openGstPaymentModule"><span>₹</span><small>Payment</small></button>
+        <button type="button" data-dashboard-open="#openExcelVoucherModule"><span>▦</span><small>Excel</small></button>
+        <button type="button" data-dashboard-open="#openCompanyLedgerModule"><span>☷</span><small>Ledger</small></button>
+        <button type="button" data-dashboard-open="#openHsnMaster"><span>#</span><small>HSN</small></button>
+      </aside>
+      <div class="dashboard-heading"><span>Choose a service</span><h1>What do you want to do?</h1><p>Bank statement conversion and GST reconciliation are kept separate for simple, safe working.</p></div>
+      <div class="module-cards">
+        <button id="openBankModule" class="module-card bank-module-card" type="button"><span class="module-icon">B2T</span><div><h2>Bank2Tally</h2><p>Convert PDF, Excel, CSV or TXT bank statements into reviewed Tally vouchers.</p><strong>Open Bank Statement Module →</strong></div></button>
+        <button id="openGstModule" class="module-card gst-module-card" type="button"><span class="module-icon">GSTR2</span><div><h2>Purchase / GSTR-2</h2><p>Import GSTR-2A, GSTR-2B, MARG GSTR2 or Purchase Excel; reconcile and prepare reviewed Tally entries.</p><strong>Open Purchase / GSTR-2 →</strong></div></button>
+        <button id="openGstReconModule" class="module-card gst-recon-module-card" type="button"><span class="module-icon">GST✓</span><div><h2>GST Reconciliation</h2><p>Import GSTR-2A, GSTR-2B and GSTR-3B; compare invoices, ITC and tax differences with correction guidance.</p><strong>Open 2A / 2B / 3B Reconciliation →</strong></div></button>
+        <button id="openSalesModule" class="module-card sales-module-card" type="button"><span class="module-icon">SALE</span><div><h2>Sales / GSTR-1</h2><p>Import GSTR-1 or sales Excel; match GSTIN, ledgers, items, HSN/SAC and notes.</p><strong>Open Sales Module</strong></div></button>
+        <button id="openBulkSalesModule" class="module-card bulk-sales-module-card" type="button"><span class="module-icon">BULK</span><div><h2>Sales/Credit/Debit Bulk Upload</h2><p>Create different-value Sales, Credit Note or Debit Note vouchers from rules or an Excel file.</p><strong>Open Bulk Voucher Builder →</strong></div></button>
+        <button id="openGstPaymentModule" class="module-card payment-module-card" type="button"><span class="module-icon">PMT</span><div><h2>GST Payment & ITC</h2><p>Import GST payment, cash and credit ledger files for reviewed tax entries.</p><strong>Open Payment Module</strong></div></button>
+        <button id="openExcelVoucherModule" class="module-card excel-module-card" type="button"><span class="module-icon">XLS</span><div><h2>Excel to Vouchers</h2><p>Receipt, Payment, Expense, Journal, Credit Note and Debit Note from Excel.</p><strong>Open Excel Module</strong></div></button>
+        <button id="openCompanyLedgerModule" class="module-card company-module-card" type="button"><span class="module-icon">LED</span><div><h2>Company Ledger Match</h2><p>Match supplier/customer statements from PDF, Excel, CSV or image with Tally and review missing entries.</p><strong>Open Ledger Reconciliation</strong></div></button>
+        <button id="openHsnMaster" class="module-card hsn-module-card" type="button"><span class="module-icon">HSN</span><div><h2>Offline HSN Master</h2><p>Import or maintain HSN/SAC, Item Name, GST Rate and UQC locally.</p><strong>Open HSN Master</strong></div></button>
+      </div>
+    </section>
+    <section id="bankModule" class="hidden">
+      <button id="bankBackBtn" class="back-dashboard secondary" type="button">← Back to Dashboard</button>
+    <section class="hero">
+      <div><h1>Bank statement to<br><em>ready voucher data</em></h1><p>Upload PDF, Excel, CSV or Text statements. Review Receipt, Payment, Contra and narration before export.</p></div>
+      <div class="upload-column">
+        <div class="account-card"><label for="bankLedger">Tally bank ledger</label><input id="bankLedger" placeholder="Example: HDFC Current A/c"><small>Enter the ledger name exactly as it exists in Tally.</small></div>
+        <div class="compact-upload-row">
+          <div id="processingStatus" class="processing-status" aria-live="polite"><span id="processingText">Ready to upload</span><strong id="processingPercent">0%</strong><div class="progress-track"><i id="progressBar"></i></div></div>
+          <section id="uploadCard" class="upload-card compact"><input id="fileInput" type="file" multiple accept=".pdf,.xlsx,.xlsm,.csv,.txt,.tsv" hidden><div><h2>Bank statement</h2><p>PDF / Excel / CSV / TXT</p></div><button id="chooseBtn" class="primary">Choose file</button></section>
+        </div>
+      </div>
+    </section>
+    <div id="message" class="message hidden"></div>
+    <section id="workspace" class="hidden">
+      <div class="metrics"><article><span>Transactions</span><strong id="mTotal">0</strong></article><article><span>Receipt</span><strong id="mReceipt">0</strong></article><article><span>Payment</span><strong id="mPayment">0</strong></article><article><span>Contra</span><strong id="mContra">0</strong></article><article><span>Ready to import</span><strong id="mReady">0</strong></article></div>
+      <div class="toolbar"><div class="filters"><button class="chip active" data-filter="All">All</button><button class="chip" data-filter="Ready">Ready</button></div><div class="export-panel"><div class="balance-summary"><span>Total Debit<strong id="totalDebit">0.00</strong></span><span>Total Credit<strong id="totalCredit">0.00</strong></span><span>Opening Balance<strong id="openingBalance">—</strong></span><span>Closing Balance<strong id="closingBalance">—</strong></span></div><div class="export-buttons"><button id="excelBtn" class="secondary">Export review Excel</button><button id="xmlBtn" class="primary">Export Tally XML</button><button id="tallyDirectBtn" class="primary tally-direct">Send Directly to Tally</button><button id="undoTallyBtn" class="secondary undo-tally">Undo Tally Import</button></div></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Particulars</th><th>Debit</th><th>Credit</th><th>Balance</th><th>Voucher</th><th>Counter ledger</th><th>Narration</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="footer-note">Take a Tally company backup and review all Pending rows before import.</div>
+    </section>
+    </section>
+  </main>
+  <dialog id="hsnMasterDialog" class="modal hsn-master-modal">
+    <form method="dialog">
+      <div class="gst-heading"><div><h2>Offline HSN Master</h2><p>All HSN and Item data stays on this computer.</p></div><button value="cancel" class="secondary">Close</button></div>
+      <div class="hsn-import-row"><input id="hsnFileInput" type="file" accept=".xlsx,.xlsm,.csv"><button id="hsnImportBtn" type="button" class="primary">Import Excel / CSV</button><input id="hsnSearch" placeholder="Search HSN, Item or Description"><button id="hsnSearchBtn" type="button" class="secondary">Search</button></div>
+      <div class="hsn-edit-row">
+        <input id="hsnCode" placeholder="HSN/SAC Code"><input id="hsnItemName" placeholder="Item Name"><input id="hsnDescription" placeholder="Description">
+        <input id="hsnGstRate" type="number" min="0" step="0.01" placeholder="GST Rate %"><input id="hsnUqc" placeholder="UQC / Unit"><input id="hsnCategory" placeholder="Category / Chapter">
+        <button id="hsnSaveBtn" type="button" class="primary">Save Item</button>
+      </div>
+      <p id="hsnMessage" class="gst-next-note">Excel headings supported: HSN Code, Item Name, Description, GST Rate, UQC, Category and Effective Date.</p>
+      <div class="hsn-table-wrap"><table><thead><tr><th>HSN/SAC</th><th>Item Name</th><th>Description</th><th>GST Rate</th><th>UQC</th><th>Category</th></tr></thead><tbody id="hsnRows"></tbody></table></div>
+    </form>
+  </dialog>
+  <dialog id="tallyConnectorDialog" class="modal connector-modal">
+    <form method="dialog">
+      <div class="gst-heading"><div><h2>Tally Connector</h2><p>Keep TallyPrime open with the correct company loaded and HTTP Server enabled on port 9000.</p></div><button value="cancel" class="secondary">Close</button></div>
+      <div class="connector-status-card"><i id="tallyStatusDot"></i><div><small>Connection status</small><strong id="tallyCompanyName">Not connected</strong><span id="tallySyncTime">Click Connect to read Tally masters.</span></div><div class="connector-controls"><button id="tallySyncBtn" type="button" class="primary tally-direct">Connect</button><button id="tallyDisconnectBtn" type="button" class="secondary hidden">Disconnect</button></div></div>
+      <p id="tallyConnectorError" class="mapping-error hidden"></p>
+      <div id="tallySyncCounts" class="gst-summary hidden"><span>Ledgers<strong id="tallyLedgerCount">0</strong></span><span>Stock Items<strong id="tallyItemCount">0</strong></span><span>Voucher Types<strong id="tallyVoucherCount">0</strong></span></div>
+      <div id="tallyMasterPreview" class="connector-master-grid hidden"><section><h3>Ledger preview</h3><div id="tallyLedgerPreview"></div></section><section><h3>Stock item preview</h3><div id="tallyItemPreview"></div></section></div>
+      <p class="gst-next-note">After sync, Bank2Tally automatically suggests matching Tally ledgers from bank particulars.</p>
+      <div class="connector-download-note"><strong>Using another computer?</strong> Download and run the Bridge Launcher on the computer where TallyPrime is installed. <a href="https://github.com/prasenjitb38-glitch/Bank2TallyPro/releases/latest/download/Bank2Tally_Bridge_Launcher.exe" download>Download Bridge Launcher (.exe)</a> <small>(Windows may show a security warning; choose “More info” → “Run anyway” if you trust this app.)</small></div>
+    </form>
+  </dialog>
+  <dialog id="companyLedgerDialog" class="modal gst-modal company-ledger-modal">
+    <form method="dialog">
+      <div class="gst-heading"><div><h2>Company Ledger Reconciliation</h2><p>Compare supplier/customer statements with the matching ledger in the open Tally company.</p></div><button value="cancel" class="secondary">Back to Dashboard</button></div>
+      <div class="gst-import-row company-import-row">
+        <label>Tally Party Ledger<input id="companyPartyLedger" list="tallyLedgerList" placeholder="Select or enter exact Tally ledger"></label>
+        <datalist id="tallyLedgerList"></datalist>
+        <label>Statement File<input id="companyFileInput" type="file" multiple accept=".pdf,.xlsx,.xlsm,.xls,.csv,.txt,.jpeg,.jpg,.png"></label>
+        <button id="companyParseBtn" type="button" class="primary">Read Statement</button>
+      </div>
+      <div class="gst-loaded-row"><label>Amount difference ₹ <input id="companyTolerance" type="number" min="0" step="0.01" value="1"></label><label>Default Counter Ledger<input id="companyCounterLedger" value="Purchase A/c"></label><button id="companyReconcileBtn" type="button" class="primary tally-direct" disabled>Compare with Tally</button><button id="companySendBtn" type="button" class="primary hidden">Send Selected to Tally</button></div>
+      <p id="companyError" class="mapping-error hidden"></p>
+      <div id="companyCounts" class="gst-match-counts hidden"></div>
+      <div class="gst-table-wrap"><table><thead><tr><th>Select</th><th>Date</th><th>Particulars</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Voucher</th><th>Match Status</th></tr></thead><tbody id="companyRows"></tbody></table></div>
+      <p class="gst-next-note">Only “Only in Statement” rows can be selected for import. Review adjustment and OCR rows manually.</p>
+    </form>
+  </dialog>
+  <dialog id="accountDialog" class="modal account-modal">
+    <form method="dialog">
+      <section class="account-brand-panel" aria-label="Bank2Tally Suite">
+        <img class="account-brand-logo" src="/bank2tally-logo-suite.png?v=1.7.0-suite7" alt="Bank2Tally Suite">
+        <div class="account-brand-banner">★ YOUR COMPLETE COMPLIANCE &amp; AUTOMATION SOLUTION ★</div>
+      </section>
+      <section class="account-login-panel">
+        <div class="account-heading"><img src="/bank2tally-logo.png?v=1.7.0" alt="Bank2Tally"><div><small>BANK2TALLY SUITE</small><h2 id="accountTitle">Create Customer Account</h2><p id="accountSubtitle">Register once to start your 50-credit trial.</p></div></div>
+        <div id="registrationFields"><label>Customer Name<input id="accountCustomerName" maxlength="100" autocomplete="name" placeholder="Enter customer name"></label><label>Mobile Number<input id="accountMobile" maxlength="15" inputmode="numeric" autocomplete="tel" placeholder="Enter mobile number"></label><label>Business Name<input id="accountBusinessName" maxlength="120" autocomplete="organization" placeholder="Enter business name"></label></div>
+        <label>4 or 6 digit Login PIN<input id="accountPin" type="password" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="Enter your secure PIN"></label>
+        <p id="accountError" class="mapping-error hidden"></p><button id="accountSubmit" type="button" class="hidden">Continue</button><div class="account-auth-actions"><button id="accountLoginBtn" type="button" class="account-auth-login">Login</button><button id="accountSignupBtn" type="button" class="account-auth-signup">Sign Up</button></div><button id="accountCloseBtn" type="button" class="secondary account-close">Close Bank2Tally</button>
+        <p class="account-privacy"><b>●</b> Your account, PIN and bank data stay on this computer.</p>
+      </section>
+    </form>
+  </dialog>
+  <dialog id="passwordDialog" class="modal password-modal">
+    <form method="dialog"><h2>Password-protected PDF</h2><p id="passwordFile"></p><label>PDF Password<input id="pdfPassword" type="password" autocomplete="off"></label><div class="modal-actions"><button value="cancel" class="secondary">Cancel</button><button id="passwordSubmit" value="default" class="primary">Open PDF</button></div></form>
+  </dialog>
+  <dialog id="undoDialog" class="modal undo-modal">
+    <form method="dialog"><h2>Undo Bank2Tally Import</h2><p>Only vouchers created by a recorded Bank2Tally direct-import batch will be deleted. Manual Tally entries will remain.</p><label>Choose imported batch<select id="undoBatch"></select></label><label>Login PIN<input id="undoPin" type="password" maxlength="6" inputmode="numeric" autocomplete="off"></label><p id="undoError" class="mapping-error hidden"></p><div class="modal-actions"><button value="cancel" class="secondary">Cancel</button><button id="undoConfirmBtn" type="button" class="danger-action">Delete This Batch</button></div></form>
+  </dialog>
+  <dialog id="gstDialog" class="modal gst-modal">
+    <form method="dialog">
+      <div class="gst-heading gst-main-heading"><div><h2 id="gstModuleTitle">GST Reconciliation</h2><p id="gstModuleSubtitle">Import files downloaded from the GST Portal. Your GST data stays on this computer.</p></div><div class="gst-heading-actions"><button id="gstRefreshBtn" type="button" class="secondary gst-refresh-button" title="Refresh">↻</button><button value="cancel" class="secondary">Back to Dashboard</button></div></div>
+      <div class="gst-import-row">
+        <label>Return Type<select id="gstReturnType"><option>GSTR-1 / Sales Register</option><option>GSTR-1 JSON (GST Portal)</option><option>MARG Backup / Sales Register</option></select></label>
+        <label><span id="gstFileLabel">GST File</span><input id="gstFileInput" type="file" multiple accept=".json,.xlsx,.xlsm,.xls,.csv,.zip,.mbk,.pdf"></label>
+        <button id="gstImportBtn" type="button" class="primary">Import GST File</button>
+      </div>
+      <p id="gstError" class="mapping-error hidden"></p>
+      <div id="margImportOptions" class="marg-import-options hidden">
+        <label>Import Period<select id="margPeriodType"><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
+        <label id="margMonthField">Select Month<input id="margMonth" type="month"></label>
+        <label>Financial Year<input id="margFinancialYear" placeholder="Example: 2025-26" value="2025-26"></label>
+        <label id="margPasswordField" class="hidden">MARG Backup Password<input id="margBackupPassword" type="password" autocomplete="off" placeholder="Backup password"></label>
+      </div>
+      <div id="gstWorkflowGuide" class="gst-workflow-guide hidden"></div>
+      <section id="gstPurchaseReconcilePanel" class="gst-purchase-reconcile-panel purchase-clean-workspace hidden">
+        <div class="purchase-view-tabs">
+          <button id="purchaseView2aBtn" type="button" class="purchase-view-tab active">GSTR-2A Sheet</button>
+          <button id="purchaseView2bBtn" type="button" class="purchase-view-tab">GSTR-2B Sheet</button>
+          <button id="purchaseViewMatchBtn" type="button" class="purchase-view-tab">2A vs 2B Match Result</button>
+        </div>
+        <div class="purchase-rebuild-placeholder">
+          <section id="purchase2aWorkspace" class="purchase2a-workspace">
+            <div id="purchase2aEmpty" class="purchase2a-empty"><div class="purchase-rebuild-icon">2A</div><h3>Import GSTR-2A</h3><p>Select one or more GSTR-2A files above to begin.</p></div>
+            <div id="purchase2aContent" class="hidden">
+              <section class="purchase2a-summary-card"><h3>GSTR-2A Summary</h3><div class="purchase2a-table-wrap"><table><thead><tr><th>Particulars</th><th>Invoices</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th></tr></thead><tbody id="purchase2aSummaryRows"></tbody></table></div></section>
+              <div id="purchase2aBoxes" class="purchase2a-boxes"></div>
+            </div>
+          </section>
+        </div>
+        <section id="purchase2bWorkspace" class="purchase2b-workspace hidden">
+          <h3>GSTR-2B Invoice Sheet <strong id="purchase2bSheetCount">0</strong></h3>
+          <div id="purchase2bSheetRows" class="purchase-table-scroll"></div>
+        </section>
+        <div class="purchase-load-status">
+          <span id="gstr2aLoadStatus" class="recon-import-chip warn">GSTR-2A: Not Imported</span>
+          <span id="gstr2bLoadStatus" class="recon-import-chip warn">GSTR-2B: Not Imported</span>
+          <span id="purchaseTallyStatus" class="recon-import-chip warn">Tally: Not Connected</span>
+          <span id="purchaseGstr3bStatus" class="recon-import-chip warn">GSTR-3B: Not loaded</span>
+          <label>Allowed difference ₹<input id="gstTolerance" type="number" min="0" step="0.01" value="1"></label>
+          <button id="gstClear2aBtn" type="button" class="secondary danger-soft" data-purchase-clear="GSTR-2A">Clear GSTR-2A</button>
+          <button id="gstClear2bBtn" type="button" class="secondary danger-soft" data-purchase-clear="GSTR-2B">Clear GSTR-2B</button>
+          <button id="gstReconcileBtn" type="button" class="primary" disabled>Match GSTR-2A &amp; GSTR-2B</button>
+        </div>
+        <div id="purchase2a2bDashboard" class="sales-recon-cards gst-pay-summary-cards hidden">
+          <button type="button" class="purchase-dash-card" data-purchase-filter="matched_2a_2b">2A + 2B Matched<strong id="purchaseCardMatched">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="matched_missing_tally">2A+2B / Missing in Tally<strong id="purchaseCardMissingTally">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="only_2b_review">2B / 2A Details Missing<strong id="purchaseCardOnly2b">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="only_2a">2A Only / Not in 2B<strong id="purchaseCardOnly2a">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="mismatch">Mismatch<strong id="purchaseCardMismatch">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="ready_to_send">Ready to Send<strong id="purchaseCardReady">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="already_in_tally">Already in Tally<strong id="purchaseCardInTally">0</strong></button>
+          <button type="button" class="purchase-dash-card" data-purchase-filter="sent_to_tally">Sent to Tally<strong id="purchaseCardSent">0</strong></button>
+        </div>
+        <div id="purchasePeriodFilters" class="gst-table-filters purchase-period-filters hidden">
+          <label>Original Invoice Month
+            <select id="purchaseOrigMonthFilter">
+              <option value="">ALL / FY</option>
+              <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
+              <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
+              <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+              <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+            </select>
+          </label>
+          <label>GSTR-2B Period
+            <select id="purchase2bMonthFilter">
+              <option value="">ALL / FY</option>
+              <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
+              <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
+              <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+              <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+            </select>
+          </label>
+          <button id="purchaseClearPeriodFilters" type="button" class="secondary">Clear Period Filters</button>
+        </div>
+        <p id="purchaseDashFilterNote" class="gst-pay-note hidden"></p>
+        <details id="gstr2SummaryPanel" class="gstr2-summary-panel hidden" open><summary>GSTR-2B Summary (Gross → Net ITC) <button id="gstExportSummaryBtn" type="button" class="secondary purchase-summary-send">Export Preview Excel</button><button id="gstSendAllPurchaseBtn" type="button" class="primary tally-direct purchase-summary-send">Send All Selected to Tally</button></summary>
+          <div class="gstr1-summary-wrap"><table><thead><tr><th>Particulars</th><th>Count</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Total ITC</th></tr></thead><tbody id="gstr2SummaryRows"></tbody></table></div>
+        </details>
+        <details id="purchaseGstr3bComparePanel" class="gstr2-summary-panel gstr3b-compare-panel hidden" open><summary>GSTR-3B ITC &amp; Reverse Charge Comparison <button id="gstExport3bCompareBtn" type="button" class="secondary purchase-summary-send">Export Preview Excel</button></summary>
+          <div class="gstr1-summary-wrap"><table><thead><tr><th>Particulars</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th></tr></thead><tbody id="purchaseGstr3bCompareRows"></tbody></table></div>
+          <p id="purchaseGstr3bAdvice" class="threeway-advice"></p>
+        </details>
+        <details id="itcDifferenceInvoicePanel" class="gstr2-summary-panel itc-difference-panel purchase-always-open hidden" open>
+          <summary>ITC Difference Invoice List <strong id="itcDifferenceInvoiceCount">0</strong></summary>
+          <div class="itc-difference-help">These GSTR-2B documents belong to months where ITC claimed in GSTR-3B is lower. Review each document before sending Purchase entries to Tally.</div>
+          <div class="itc-difference-actions"><input id="itcDifferenceSearch" class="purchase-box-search" placeholder="Search all columns"><button id="itcClearFilters" type="button" class="secondary">Clear Filters</button><button id="itcExcludeAllBtn" type="button" class="secondary danger-soft">Do Not Send All to Tally</button><button id="itcIncludeAllBtn" type="button" class="secondary success-soft">Include All in Tally</button></div>
+          <div class="itc-difference-totals"><span>Taxable <strong id="itcDifferenceTaxable">0.00</strong></span><span>IGST <strong id="itcDifferenceIgst">0.00</strong></span><span>CGST <strong id="itcDifferenceCgst">0.00</strong></span><span>SGST <strong id="itcDifferenceSgst">0.00</strong></span></div>
+          <div class="itc-difference-table"><table><thead><tr><th>Period</th><th>GSTIN</th><th>Party</th><th>Invoice No.</th><th>Invoice Date</th><th>Type</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Difference Reason</th><th>Tally Option</th></tr><tr class="itc-column-filters"><th><input id="itcFilterPeriod" placeholder="Filter"></th><th><input id="itcFilterGstin" placeholder="Filter"></th><th><input id="itcFilterParty" placeholder="Filter"></th><th><input id="itcFilterInvoice" placeholder="Filter"></th><th><input id="itcFilterDate" placeholder="Filter"></th><th><input id="itcFilterType" placeholder="Filter"></th><th><input id="itcFilterTaxable" placeholder="Filter"></th><th><input id="itcFilterIgst" placeholder="Filter"></th><th><input id="itcFilterCgst" placeholder="Filter"></th><th><input id="itcFilterSgst" placeholder="Filter"></th><th><input id="itcFilterReason" placeholder="Filter"></th><th><select id="itcFilterAction"><option value="">All</option><option value="exclude">Do Not Send</option><option value="include">Include</option></select></th></tr></thead><tbody id="itcDifferenceInvoiceRows"></tbody></table></div>
+        </details>
+        <details id="purchaseGstr2aSummaryPanel" class="gstr2-summary-panel gstr2a-summary-panel hidden" open><summary>GSTR-2A Summary <button id="gstExport2aSummaryBtn" type="button" class="secondary purchase-summary-send">Export Preview Excel</button></summary>
+          <div class="gstr1-summary-wrap"><table><thead><tr><th>Particulars</th><th>Invoices</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th></tr></thead><tbody id="purchaseGstr2aSummaryRows"></tbody></table></div>
+        </details>
+        <div id="gstPurchaseResultBoxes" class="gst-purchase-result-boxes hidden">
+          <details class="purchase-result matched purchase-always-open" open><summary><span id="gstMatchedTitle">2A + 2B Matched</span> <strong id="gstMatchedCount">0</strong></summary><div class="purchase-box-actions"><input id="gstMatchedSearch" class="purchase-box-search" placeholder="Search this box"><button id="gstSelectAllMatched" type="button" class="secondary purchase-select-toggle">Select All</button><input id="gstMatchedItem" list="tallyItemList" placeholder="Tally item for selected rows"><button id="gstApplyMatchedItem" type="button" class="secondary">Apply Item</button><button id="gstExportMatched" type="button" class="secondary">Export Preview Excel</button><button id="gstSendMatchedPurchaseBtn" type="button" class="primary tally-direct">Send Selected Matched to Tally</button></div><div id="gstMatchedRows"></div></details>
+          <details class="purchase-result unmatched purchase-always-open" open><summary>GSTR-2A Only / Not in GSTR-2B <strong id="gstOnly2aCount">0</strong></summary><div class="purchase-box-actions"><input id="gstOnly2aSearch" class="purchase-box-search" placeholder="Search this box"><button id="gstSelectAllOnly2a" type="button" class="secondary purchase-select-toggle">Select All</button><input id="gstOnly2aItem" list="tallyItemList" placeholder="Tally item for selected rows"><button id="gstApplyOnly2aItem" type="button" class="secondary">Apply Item</button><button id="gstExportOnly2a" type="button" class="secondary">Export Preview Excel</button><button id="gstSendOnly2aPurchaseBtn" type="button" class="primary tally-direct">Send Selected 2A-only to Tally</button></div><div id="gstOnly2aRows"></div></details>
+          <details class="purchase-result unmatched purchase-always-open" open><summary>GSTR-2B Only / GSTR-2A Details Missing — Review Before Send <strong id="gstOnly2bCount">0</strong></summary><div class="purchase-box-actions"><input id="gstOnly2bSearch" class="purchase-box-search" placeholder="Search this box"><button id="gstSelectAllOnly2b" type="button" class="secondary purchase-select-toggle">Select All</button><input id="gstOnly2bItem" list="tallyItemList" placeholder="Tally item for selected rows"><button id="gstApplyOnly2bItem" type="button" class="secondary">Apply Item</button><button id="gstExportOnly2b" type="button" class="secondary">Export Preview Excel</button><button id="gstSendOnly2bPurchaseBtn" type="button" class="primary tally-direct">Send Selected 2B-only to Tally</button></div><div id="gstOnly2bRows"></div></details>
+          <details class="purchase-result mismatch purchase-always-open" open><summary>2A / 2B Mismatch — Review Before Send <strong id="gstMismatchCount">0</strong></summary><div class="purchase-box-actions"><input id="gstMismatchSearch" class="purchase-box-search" placeholder="Search this box"><button id="gstSelectAllMismatch" type="button" class="secondary purchase-select-toggle">Select All</button><input id="gstMismatchItem" list="tallyItemList" placeholder="Tally item for selected rows"><button id="gstApplyMismatchItem" type="button" class="secondary">Apply Item</button><button id="gstExportMismatch" type="button" class="secondary">Export Preview Excel</button><button id="gstSendMismatchPurchaseBtn" type="button" class="primary tally-direct">Send Selected Reviewed Mismatch to Tally</button></div><div id="gstMismatchRows"></div></details>
+          <details class="purchase-result notes purchase-always-open" open><summary>Credit Note, Debit Note &amp; Invoice Amendment <strong id="gstPurchaseNoteCount">0</strong></summary><div class="purchase-box-actions"><input id="gstNotesSearch" class="purchase-box-search" placeholder="Search this box"><button id="gstSelectAllNotes" type="button" class="secondary purchase-select-toggle">Select All</button><input id="gstPurchaseNoteItem" list="tallyItemList" placeholder="Tally item for selected notes"><button id="gstApplyPurchaseNoteItem" type="button" class="secondary">Apply Item</button><button id="gstExportNotes" type="button" class="secondary">Export Preview Excel</button><button id="gstSendPurchaseNotesBtn" type="button" class="primary tally-direct">Send Selected Notes to Tally</button></div><div id="gstPurchaseNoteRows"></div></details>
+        </div>
+      </section>
+      <section id="gstThreeWayPanel" class="gst-threeway-panel hidden">
+        <div class="recon-tab-bar" role="tablist" aria-label="GST Reconciliation views">
+          <button type="button" class="recon-tab active" data-recon-tab="overview">Overview</button>
+          <button type="button" class="recon-tab" data-recon-tab="purchase">GSTR-2B vs Tally</button>
+          <button type="button" class="recon-tab" data-recon-tab="sales">GSTR-1 vs Tally</button>
+          <button type="button" class="recon-tab" data-recon-tab="gstr3b">GSTR-3B vs Books</button>
+          <button type="button" class="recon-tab" data-recon-tab="payment">GST Payment &amp; Ledger</button>
+        </div>
+        <section id="reconOverviewPane" class="recon-tab-pane">
+          <div id="reconImportStatusBar" class="recon-import-status-bar">
+            <span id="reconStatusTally" class="recon-import-chip warn">Tally: Checking…</span>
+            <span id="reconStatus2b" class="recon-import-chip warn">GSTR-2B: Not Imported</span>
+            <span id="reconStatus1" class="recon-import-chip warn">GSTR-1: Not Imported</span>
+            <span id="reconStatus3b" class="recon-import-chip warn">GSTR-3B: Not Imported</span>
+          </div>
+          <div class="recon-overview-grid">
+            <article class="recon-overview-card purchase-side">
+              <h3>Purchase Side <small id="overview2bStatusLabel">GSTR-2B: Not Imported</small></h3>
+              <div class="recon-card-metrics">
+                <span>Net GSTR-2B ITC<strong id="overview2bItc">Not Imported</strong></span>
+                <span>Purchase Mismatch<strong id="overviewPurchaseMismatch">Not Imported</strong></span>
+                <span>Missing Purchase<strong id="overviewMissingPurchase">Not Imported</strong></span>
+              </div>
+            </article>
+            <article class="recon-overview-card sales-side">
+              <h3>Sales Side <small id="overviewGstr1StatusLabel">GSTR-1: Not Imported</small></h3>
+              <div class="recon-card-metrics">
+                <span>Output GST<strong id="overviewOutputGst">Not Imported</strong></span>
+                <span>GSTR-1 Match<strong id="overviewGstr1Match">Not Imported</strong></span>
+                <span>GSTR-1 Mismatch<strong id="overviewGstr1Mismatch">Not Imported</strong></span>
+                <span>Missing Sales<strong id="overviewMissingSales">Not Imported</strong></span>
+              </div>
+            </article>
+            <article class="recon-overview-card gstr3b-side">
+              <h3>GSTR-3B / Net Payable <small id="overview3bStatusLabel">GSTR-3B: Not Imported</small></h3>
+              <div class="recon-card-metrics">
+                <span>Output GST<strong id="overview3bOutput">Not Imported</strong></span>
+                <span>Available ITC<strong id="overview3bAvailable">Not Imported</strong></span>
+                <span>Claimed ITC<strong id="overview3bClaimed">Not Imported</strong></span>
+                <span>Net GST Payable<strong id="overview3bNet">Not Imported</strong></span>
+                <span>Net GST Interest Payable<strong id="overview3bInterest">Not Imported</strong></span>
+                <span>Net GST Late Fee Payable<strong id="overview3bLateFee">Not Imported</strong></span>
+                <span>Total Cash Payable<strong id="overview3bTotalCash">Not Imported</strong></span>
+                <span>Books vs 3B Diff<strong id="overview3bDiff">Not Imported</strong></span>
+              </div>
+              <details id="overview3bCashBreakdown" class="gstr3b-cash-breakdown hidden">
+                <summary>Month-wise Cash Payable</summary>
+                <div class="gstr1-summary-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th>GST Tax Payable</th>
+                        <th>Interest Payable</th>
+                        <th>Late Fee Payable</th>
+                        <th>Total Cash Payable</th>
+                      </tr>
+                    </thead>
+                    <tbody id="overview3bCashRows"></tbody>
+                    <tfoot id="overview3bCashTotals"></tfoot>
+                  </table>
+                </div>
+              </details>
+            </article>
+          </div>
+          <div class="recon-oneclick-row">
+            <label>Period / Month<select id="reconPeriodFilter">
+              <option value="ALL" selected>ALL / FY 2025-26</option>
+              <option value="042025">Apr-25 (042025)</option>
+              <option value="052025">May-25 (052025)</option>
+              <option value="062025">Jun-25 (062025)</option>
+              <option value="072025">Jul-25 (072025)</option>
+              <option value="082025">Aug-25 (082025)</option>
+              <option value="092025">Sep-25 (092025)</option>
+              <option value="102025">Oct-25 (102025)</option>
+              <option value="112025">Nov-25 (112025)</option>
+              <option value="122025">Dec-25 (122025)</option>
+              <option value="012026">Jan-26 (012026)</option>
+              <option value="022026">Feb-26 (022026)</option>
+              <option value="032026">Mar-26 (032026)</option>
+            </select></label>
+            <label>Allowed difference ₹<input id="reconOverviewTolerance" type="number" min="0" step="0.01" value="1"></label>
+            <button id="reconOneClickSyncBtn" type="button" class="primary tally-direct">One Click GST Sync</button>
+            <button id="reconOverviewRefreshBtn" type="button" class="secondary">Refresh Overview</button>
+          </div>
+          <div id="reconOneClickProgress" class="recon-oneclick-progress hidden"><strong id="reconOneClickPercent">0%</strong><span id="reconOneClickLabel">Ready</span><div class="progress-track"><i id="reconOneClickBar"></i></div></div>
+        </section>
+        <section id="reconPurchasePane" class="recon-tab-pane hidden">
+        <div class="purchase-load-status gst-recon-load-status">
+          <span id="recon2bStatus">GSTR-2B: Not loaded</span>
+          <span id="recon3bStatus">GSTR-3B: Not loaded</span>
+          <span id="reconTallyStatus">Tally Purchase: Not synced</span>
+          <label>Allowed difference ₹<input id="reconTolerance" type="number" min="0" step="0.01" value="1"></label>
+          <button id="reconTallySyncBtn" type="button" class="primary tally-direct">Sync Tally Purchase</button>
+          <button id="recon2bTallyBtn" type="button" class="primary" disabled>Reconcile 2B vs Tally</button>
+          <button id="reconItcBtn" type="button" class="secondary" disabled>Refresh ITC Dashboard</button>
+          <button id="reconClearBtn" type="button" class="secondary danger-soft" data-clear-return="GSTR-2B">Clear</button>
+        </div>
+        <details id="recon2bSummaryPanel" class="gstr2-summary-panel hidden" open>
+          <summary>GSTR-2B Summary — Net ITC <strong id="recon2bCount">0</strong></summary>
+          <div class="gst-summary recon-inline-summary">
+            <span>Invoice Count<strong id="recon2bInvoiceCount">0</strong></span>
+            <span>Credit Note Count<strong id="recon2bCreditCount">0</strong></span>
+            <span>Debit Note Count<strong id="recon2bDebitCount">0</strong></span>
+            <span>Amendment Count<strong id="recon2bAmendCount">0</strong></span>
+          </div>
+          <div class="gstr1-summary-wrap recon-table-wrap">
+            <table>
+              <thead><tr><th>Particulars</th><th>Count</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>ITC</th></tr></thead>
+              <tbody id="recon2bGrossNetRows"></tbody>
+            </table>
+          </div>
+          <div class="gst-summary recon-inline-summary">
+            <span>Net GSTR-2B ITC<strong id="recon2bNetItc">0.00</strong></span>
+            <span>Net Taxable<strong id="recon2bTaxable">0.00</strong></span>
+            <span>Net IGST<strong id="recon2bIgst">0.00</strong></span>
+            <span>Net CGST<strong id="recon2bCgst">0.00</strong></span>
+            <span>Net SGST<strong id="recon2bSgst">0.00</strong></span>
+          </div>
+        </details>
+        <details id="reconItcDashboardPanel" class="gstr2-summary-panel itc-dashboard-panel hidden" open>
+          <summary>Available ITC Dashboard</summary>
+          <div class="itc-dashboard-summary">
+            <span>Net GSTR-2B ITC<strong id="reconItcGstr2b">0.00</strong></span>
+            <span>GSTR-3B Claimed<strong id="reconItcGstr3b">0.00</strong></span>
+            <span>Tally Booked (4C)<strong id="reconItcTally">0.00</strong></span>
+            <span>Available ITC<strong id="reconItcAvailable">0.00</strong></span>
+          </div>
+          <div class="itc-diff-actions">
+            <button id="reconItcViewDiffBtn" type="button" class="secondary">View Difference</button>
+            <button id="reconItcDiffExportBtn" type="button" class="secondary" disabled>Export Difference Excel</button>
+          </div>
+          <div id="reconItcGrossNetBar" class="gst-summary recon-inline-summary hidden">
+            <span>Gross Invoice ITC<strong id="reconItcGrossInvoice">0.00</strong></span>
+            <span>(−) Credit Note ITC<strong id="reconItcCreditNote">0.00</strong></span>
+            <span>(+) Debit Note ITC<strong id="reconItcDebitNote">0.00</strong></span>
+            <span>(±) Amendment<strong id="reconItcAmendment">0.00</strong></span>
+          </div>
+          <div id="reconTallyBookedPanel" class="gstr1-summary-wrap recon-table-wrap hidden">
+            <table>
+              <thead><tr><th>Tally Booked calculation (GSTR-3B Section 4C)</th><th>Count</th><th>Amount</th></tr></thead>
+              <tbody id="reconTallyBookedRows"></tbody>
+            </table>
+            <p id="reconTallyBookedFormula" class="threeway-advice"></p>
+          </div>
+          <div class="gstr1-summary-wrap">
+            <table>
+              <thead><tr><th>Period</th><th>2B Docs</th><th>Net 2B ITC</th><th>3B Claimed</th><th>Tally Booked</th><th>Available ITC</th><th>Action</th></tr></thead>
+              <tbody id="reconItcRows"></tbody>
+            </table>
+          </div>
+          <p id="reconItcAdvice" class="threeway-advice"></p>
+        </details>
+        <div id="reconVoucherReportPlaceholder" class="voucher-recon-placeholder-card hidden">
+          <div class="voucher-recon-placeholder-head">
+            <h3>Voucher-level Reconciliation Report</h3>
+            <p>Detailed invoice-by-invoice comparison will open on a dedicated page. Backend reconciliation continues to run in the background.</p>
+          </div>
+          <div class="voucher-recon-placeholder-stats">
+            <span>Total Matched<strong id="reconVoucherMatchedCount">0</strong></span>
+            <span>Total Mismatched<strong id="reconVoucherMismatchCount">0</strong></span>
+          </div>
+          <button id="reconVoucherViewReportBtn" type="button" class="secondary" disabled title="Coming soon on a dedicated page">View Report</button>
+        </div>
+        </section>
+        <section id="reconSalesPane" class="recon-tab-pane hidden">
+          <div class="purchase-load-status gst-recon-load-status sales-recon-load-status">
+            <span id="reconGstr1Status">GSTR-1: Not loaded</span>
+            <span id="reconTallySalesStatus">Tally Sales: Not synced</span>
+            <label>Period<select id="salesReconPeriod">
+              <option value="ALL">ALL / FY 2025-26</option>
+              <option value="042025">Apr-25 (042025)</option>
+              <option value="052025">May-25 (052025)</option>
+              <option value="062025">Jun-25 (062025)</option>
+              <option value="072025">Jul-25 (072025)</option>
+              <option value="082025">Aug-25 (082025)</option>
+              <option value="092025">Sep-25 (092025)</option>
+              <option value="102025">Oct-25 (102025)</option>
+              <option value="112025">Nov-25 (112025)</option>
+              <option value="122025">Dec-25 (122025)</option>
+              <option value="012026">Jan-26 (012026)</option>
+              <option value="022026">Feb-26 (022026)</option>
+              <option value="032026">Mar-26 (032026)</option>
+            </select></label>
+            <label>Allowed difference ₹<input id="salesReconTolerance" type="number" min="0" step="0.01" value="1"></label>
+            <button id="reconTallySalesSyncBtn" type="button" class="primary tally-direct">Sync Tally Sales</button>
+            <button id="reconGstr1TallyBtn" type="button" class="primary" disabled>Reconcile GSTR-1 vs Tally</button>
+            <button id="reconSalesDashBtn" type="button" class="secondary" disabled>Refresh Sales Dashboard</button>
+            <button id="reconGstr1ClearBtn" type="button" class="secondary danger-soft" data-clear-return="GSTR-1">Clear</button>
+          </div>
+          <div id="salesReconCards" class="sales-recon-cards hidden">
+            <span>GSTR-1 Invoices<strong id="salesCardGstr1Count">0</strong></span>
+            <span>Tally Sales<strong id="salesCardTallyCount">0</strong></span>
+            <span>Exact Match<strong id="salesCardExact">0</strong></span>
+            <span>Mismatch<strong id="salesCardMismatch">0</strong></span>
+            <span>Missing in Tally<strong id="salesCardMissingTally">0</strong></span>
+            <span>Missing in GSTR-1<strong id="salesCardMissingGstr1">0</strong></span>
+            <span>GSTR-1 Taxable<strong id="salesCardGstr1Taxable">0.00</strong></span>
+            <span>Tally Taxable<strong id="salesCardTallyTaxable">0.00</strong></span>
+            <span>Output GST Diff<strong id="salesCardOutputDiff">0.00</strong></span>
+            <span>Portal Net GST<strong id="salesCardPortalNetGst">0.00</strong></span>
+            <span>Tally Net GST<strong id="salesCardTallyNetGst">0.00</strong></span>
+          </div>
+          <details id="salesFyPeriodPanel" class="gstr2-summary-panel hidden" open>
+            <summary>FY 2025-26 GSTR-1 by Period — Net Output GST <strong id="salesFyNetOutputGst">0.00</strong></summary>
+            <p class="threeway-advice">ALL / FY 2025-26 aggregates Apr-25 through Mar-26. Monthly selection still shows that month only. GSTR-1 tax math is unchanged.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th><th>Docs</th><th>Total Taxable</th><th>Total IGST</th><th>Total CGST</th><th>Total SGST</th><th>Total CESS</th><th>Net Output GST</th>
+                  </tr>
+                </thead>
+                <tbody id="salesFyPeriodRows"></tbody>
+                <tfoot id="salesFyPeriodTotals"></tfoot>
+              </table>
+            </div>
+          </details>
+          <details id="salesDocTypePanel" class="gstr2-summary-panel hidden" open>
+            <summary>Document Type Summary (Signed) — Net GST <strong id="salesDocTypeNetLabel">0.00</strong></summary>
+            <p class="threeway-advice">Invoice +, Debit Note +, Credit Note −, Amendment Adjust. Net GST = Invoices + Debit Notes − Credit Notes ± Amendments. Only Net GST is compared with Tally.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Document Type</th>
+                    <th>Count</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Signed Total</th>
+                    <th>Tally Count</th><th>Tally Signed</th><th>Diff</th><th>Type Match</th>
+                  </tr>
+                </thead>
+                <tbody id="salesDocTypeRows"></tbody>
+              </table>
+            </div>
+            <div class="gst-summary recon-inline-summary">
+              <span>Portal Net GST<strong id="salesPortalNetGst">0.00</strong></span>
+              <span>Tally Net GST<strong id="salesTallyNetGst">0.00</strong></span>
+              <span>Difference<strong id="salesNetGstDiff">0.00</strong></span>
+              <span>Net GST vs Tally<strong id="salesNetGstStatus">—</strong></span>
+            </div>
+          </details>
+          <details id="salesOutputSummaryPanel" class="gstr2-summary-panel hidden" open>
+            <summary>Output GST Summary</summary>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead><tr><th>Particulars</th><th>GSTR-1</th><th>Tally</th><th>Difference</th></tr></thead>
+                <tbody id="salesOutputSummaryRows"></tbody>
+              </table>
+            </div>
+            <div class="itc-diff-actions">
+              <button id="reconSalesViewDiffBtn" type="button" class="secondary" disabled>View Difference</button>
+              <button id="reconSalesDiffExportBtn" type="button" class="secondary" disabled>Export Difference Excel</button>
+              <button id="reconSalesDiffExportCsvBtn" type="button" class="secondary" disabled>Export Difference CSV</button>
+            </div>
+          </details>
+          <div id="salesDiffBadges" class="gst-match-counts sales-diff-badges hidden">
+            <span>Matched<strong id="salesDiffBadgeMatched">0</strong></span>
+            <span>Only in GSTR-1<strong id="salesDiffBadgeOnlyG1">0</strong></span>
+            <span>Only in Tally<strong id="salesDiffBadgeOnlyTally">0</strong></span>
+            <span>Date Mismatch<strong id="salesDiffBadgeDate">0</strong></span>
+            <span>Amount/Tax Mismatch<strong id="salesDiffBadgeAmount">0</strong></span>
+            <span>Output GST Diff<strong id="salesDiffBadgeOutput">0.00</strong></span>
+            <span>Sum of voucher diffs<strong id="salesDiffBadgeVoucherSum">0.00</strong></span>
+          </div>
+          <div class="sales-filter-toolbar">
+            <button id="salesFiltersToggle" type="button" class="secondary sales-filters-toggle" aria-expanded="false" aria-controls="salesFiltersPanel">
+              <span class="sales-filters-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v5l-4 2v-7L4 5z"/></svg>
+              </span>
+              Filters
+            </button>
+            <div id="salesReconMatchCounts" class="gst-match-counts sales-filter-toolbar-counts"></div>
+          </div>
+          <div id="salesFiltersPanel" class="sales-filters-panel collapsed" hidden>
+            <div class="sales-recon-filters">
+              <input id="salesReconSearch" placeholder="Search party / invoice / GSTIN">
+              <select id="salesReconStatusFilter"><option value="">All Status</option><option>Exact Match</option><option>Value Difference</option><option>Tax Difference</option><option>Date Difference</option><option>GSTIN Difference</option><option>Invoice Number Difference</option><option>Missing in Tally</option><option>Missing in GSTR-1</option><option>Possible Match</option><option>Duplicate</option><option value="Mismatch">All Mismatch</option></select>
+              <input id="salesReconDateFilter" placeholder="Date filter">
+              <input id="salesReconGstinFilter" placeholder="GSTIN filter">
+              <select id="salesReconVoucherFilter"><option value="">All Voucher Types</option><option>Sales Invoice</option><option>Credit Note</option><option>Debit Note</option><option>B2C Invoice</option></select>
+              <select id="salesReconSort"><option value="status">Sort: Status</option><option value="date">Sort: Date</option><option value="diff">Sort: Difference</option><option value="party">Sort: Party</option></select>
+              <button id="salesReconExportXlsx" type="button" class="secondary">Export Excel</button>
+              <button id="salesReconExportCsv" type="button" class="secondary">Export CSV</button>
+            </div>
+          </div>
+          <!-- Temporarily hidden: voucher grid lives in View Difference modal. Keep markup for later restore. -->
+          <div id="salesReconVoucherSection" class="sales-recon-voucher-section sales-recon-voucher-section--hidden" hidden aria-hidden="true">
+          <div class="gstr1-summary-wrap recon-table-wrap sales-recon-table-wrap">
+            <table>
+              <thead><tr>
+                <th>Status</th><th>GSTIN</th><th>Party Name</th><th>Invoice No</th><th>Invoice Date</th><th>Voucher Type</th>
+                <th>GSTR-1 Taxable</th><th>Tally Taxable</th><th>Difference</th>
+                <th>GSTR-1 IGST</th><th>Tally IGST</th><th>GSTR-1 CGST</th><th>Tally CGST</th>
+                <th>GSTR-1 SGST</th><th>Tally SGST</th><th>GSTR-1 CESS</th><th>Tally CESS</th><th>Total Difference</th><th>Review</th>
+              </tr></thead>
+              <tbody id="salesReconRows"></tbody>
+            </table>
+          </div>
+          <div class="sales-recon-pager">
+            <button id="salesReconPrevPage" type="button" class="secondary">Previous</button>
+            <span id="salesReconPageLabel">Page 1</span>
+            <button id="salesReconNextPage" type="button" class="secondary">Next</button>
+          </div>
+          <p id="salesReconAdvice" class="threeway-advice"></p>
+          </div>
+        </section>
+        <section id="reconGstr3bPane" class="recon-tab-pane hidden">
+          <div class="purchase-load-status gst-recon-load-status gstr3b-recon-load-status">
+            <span id="reconGstr3bPeriodStatus">GSTR-3B: Not loaded</span>
+            <label>Period<select id="gstr3bReconPeriod">
+              <option value="ALL">ALL / FY 2025-26</option>
+              <option value="042025">Apr-25 (042025)</option>
+              <option value="052025">May-25 (052025)</option>
+              <option value="062025">Jun-25 (062025)</option>
+              <option value="072025">Jul-25 (072025)</option>
+              <option value="082025">Aug-25 (082025)</option>
+              <option value="092025">Sep-25 (092025)</option>
+              <option value="102025">Oct-25 (102025)</option>
+              <option value="112025">Nov-25 (112025)</option>
+              <option value="122025">Dec-25 (122025)</option>
+              <option value="012026">Jan-26 (012026)</option>
+              <option value="022026">Feb-26 (022026)</option>
+              <option value="032026">Mar-26 (032026)</option>
+            </select></label>
+            <label>Allowed difference ₹<input id="gstr3bReconTolerance" type="number" min="0" step="0.01" value="1"></label>
+            <button id="reconGstr3bDashBtn" type="button" class="primary">Reconcile Books vs GSTR-3B</button>
+            <button id="reconGstr3bLiabilityBtn" type="button" class="secondary">Liability</button>
+            <button id="reconGstr3bItcBtn" type="button" class="secondary">ITC Summary</button>
+            <button id="reconGstr3bUtilBtn" type="button" class="secondary">Utilisation</button>
+            <button id="reconGstr3bClearBtn" type="button" class="secondary danger-soft" data-clear-return="GSTR-3B">Clear</button>
+          </div>
+          <div id="gstr3bReconCards" class="sales-recon-cards gstr3b-recon-cards hidden">
+            <span>Output GST<strong id="g3bCardOutput">0.00</strong></span>
+            <span>Available ITC<strong id="g3bCardAvailable">0.00</strong></span>
+            <span>Claimed ITC<strong id="g3bCardClaimed">0.00</strong></span>
+            <span>Net GST Payable<strong id="g3bCardNet">0.00</strong></span>
+            <span>Net GST Interest Payable<strong id="g3bCardInterest">0.00</strong></span>
+            <span>Net GST Late Fee Payable<strong id="g3bCardLate">0.00</strong></span>
+            <span>Total Cash Payable<strong id="g3bCardTotalCash">0.00</strong></span>
+            <span>Books vs 3B Diff<strong id="g3bCardDiff">0.00</strong></span>
+          </div>
+          <details id="gstr3bCashBreakdownPanel" class="gstr2-summary-panel hidden" open>
+            <summary>Month-wise Cash Payable (Tax / Interest / Late Fee)</summary>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>GST Tax Payable</th>
+                    <th>Interest Payable</th>
+                    <th>Late Fee Payable</th>
+                    <th>Total Cash Payable</th>
+                  </tr>
+                </thead>
+                <tbody id="gstr3bCashBreakdownRows"></tbody>
+                <tfoot id="gstr3bCashBreakdownTotals"></tfoot>
+              </table>
+            </div>
+          </details>
+          <details id="gstr3bComparePanel" class="gstr2-summary-panel hidden" open>
+            <summary>Books vs GSTR-3B</summary>
+            <p class="threeway-advice">Click <strong>Outward Taxable Supplies</strong> or <strong>Nil/Exempt Outward Supplies</strong> to drill into Books vouchers and GSTR-3B Table 3.1(a)/(c) source fields.</p>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead><tr><th>Particulars</th><th>Books</th><th>GSTR-3B</th><th>Difference</th></tr></thead>
+                <tbody id="gstr3bCompareRows"></tbody>
+              </table>
+            </div>
+            <details id="gstr3bOutwardDrillPanel" class="gstr2-summary-panel hidden" open>
+              <summary id="gstr3bOutwardDrillTitle">Outward classification drill-down</summary>
+              <p id="gstr3bOutwardDrillFinding" class="threeway-advice"></p>
+              <div class="gstr1-summary-wrap">
+                <h4>Portal (GSTR-3B) by month</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th>Source PDF</th>
+                      <th>3.1(a) Taxable</th>
+                      <th>Books Taxable</th>
+                      <th>Taxable Diff</th>
+                      <th>3.1(c) Nil/Exempt</th>
+                      <th>Books Nil</th>
+                      <th>Nil Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody id="gstr3bOutwardPortalRows"></tbody>
+                </table>
+              </div>
+              <div class="gstr1-summary-wrap">
+                <h4 id="gstr3bOutwardBooksHeading">Books vouchers</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Date</th>
+                      <th>Period</th>
+                      <th>Party</th>
+                      <th>Type</th>
+                      <th>Rate</th>
+                      <th>Taxable</th>
+                      <th>Tax</th>
+                      <th>Classification</th>
+                    </tr>
+                  </thead>
+                  <tbody id="gstr3bOutwardBooksRows"></tbody>
+                </table>
+              </div>
+            </details>
+          </details>
+          <details id="gstr3bLiabilityPanel" class="gstr2-summary-panel hidden" open>
+            <summary>Output Liability (Tally)</summary>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead><tr><th>Particulars</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Total</th></tr></thead>
+                <tbody id="gstr3bLiabilityRows"></tbody>
+              </table>
+            </div>
+          </details>
+          <details id="gstr3bItcPanel" class="gstr2-summary-panel hidden" open>
+            <summary>ITC Claim Summary</summary>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead><tr><th>Particulars</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Total</th></tr></thead>
+                <tbody id="gstr3bItcRows"></tbody>
+              </table>
+            </div>
+          </details>
+          <details id="gstr3bUtilPanel" class="gstr2-summary-panel hidden" open>
+            <summary>GST Utilisation &amp; Net Payable</summary>
+            <div class="gstr1-summary-wrap">
+              <table>
+                <thead><tr><th>Particulars</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Total</th></tr></thead>
+                <tbody id="gstr3bUtilRows"></tbody>
+              </table>
+            </div>
+          </details>
+          <div class="sales-recon-filters gstr3b-export-row">
+            <button id="gstr3bExportBooks" type="button" class="secondary">Export Books vs 3B</button>
+            <button id="gstr3bExportLiability" type="button" class="secondary">Export Liability</button>
+            <button id="gstr3bExportItc" type="button" class="secondary">Export ITC</button>
+            <button id="gstr3bExportCash" type="button" class="secondary">Export Cash Ledger</button>
+            <button id="gstr3bExportDiff" type="button" class="secondary">Export Tax Diff</button>
+            <button id="gstr3bExportCsv" type="button" class="secondary">Export CSV</button>
+          </div>
+          <p id="gstr3bReconAdvice" class="threeway-advice"></p>
+        </section>
+        <section id="reconPaymentPane" class="recon-tab-pane hidden">
+          <div class="gst-pay-head">
+            <div>
+              <h3>GST Payment &amp; Ledger Reconciliation</h3>
+              <p class="threeway-advice">Reconcile GST Portal challan deposits, Electronic Cash Ledger utilisation, Electronic Credit / ITC Ledger, GSTR-3B liability components and Tally preview — from imported portal CSVs only.</p>
+            </div>
+            <label>Financial Year
+              <select id="gstPayFinancialYear">
+                <option value="2025-26" selected>FY 2025-26</option>
+              </select>
+            </label>
+          </div>
+          <div class="recon-subtab-bar" role="tablist" aria-label="GST Payment &amp; Ledger sections">
+            <button type="button" class="recon-subtab active" data-pay-tab="summary">Payment Summary</button>
+            <button type="button" class="recon-subtab" data-pay-tab="cash">Cash Ledger</button>
+            <button type="button" class="recon-subtab" data-pay-tab="itc">ITC Ledger</button>
+            <button type="button" class="recon-subtab" data-pay-tab="recon">Payment Reconciliation</button>
+            <button type="button" class="recon-subtab" data-pay-tab="adjust">Tally Adjustment</button>
+          </div>
+
+          <section id="gstPaySummaryPane" class="gst-pay-subpane">
+            <div id="gstPayImportStatusBar" class="recon-import-status-bar">
+              <span id="gstPayStatusPayment" class="recon-import-chip warn">GST Payment List: Not Imported</span>
+              <span id="gstPayStatusCash" class="recon-import-chip warn">Cash Ledger: Not Imported</span>
+              <span id="gstPayStatusItc" class="recon-import-chip warn">ITC/Credit Ledger: Not Imported</span>
+              <span id="gstPayStatus3b" class="recon-import-chip warn">GSTR-3B: Not Imported</span>
+              <span id="gstPayStatusTally" class="recon-import-chip warn">Tally: Not Connected</span>
+            </div>
+            <div class="gst-pay-import-grid">
+              <article class="gst-pay-import-card">
+                <h4>GST Payment List / Challan History</h4>
+                <p>Portal Challan History CSV. Select multiple files with Ctrl/Shift. PAID = cash deposit; FAILED excluded from paid totals.</p>
+                <input id="gstPayPaymentFile" type="file" accept=".xlsx,.xlsm,.xls,.csv" multiple>
+                <p id="gstPayPaymentFileSelection" class="gst-pay-note">No files selected</p>
+                <div class="gst-pay-import-actions">
+                  <button id="gstPayImportPaymentBtn" type="button" class="primary">Import Payment List</button>
+                  <button id="gstPayClearPaymentBtn" type="button" class="secondary danger-soft" data-pay-clear="GST_PAYMENT_LIST">Clear</button>
+                </div>
+                <p id="gstPayPaymentImportNote" class="gst-pay-note">Not imported</p>
+              </article>
+              <article class="gst-pay-import-card">
+                <h4>Electronic Cash Ledger</h4>
+                <p>GST Portal Electronic Cash Ledger export.</p>
+                <input id="gstPayCashFile" type="file" accept=".xlsx,.xlsm,.xls,.csv">
+                <div class="gst-pay-import-actions">
+                  <button id="gstPayImportCashBtn" type="button" class="primary">Import Cash Ledger</button>
+                  <button id="gstPayClearCashBtn" type="button" class="secondary danger-soft" data-pay-clear="GST_CASH_LEDGER">Clear</button>
+                </div>
+                <p id="gstPayCashImportNote" class="gst-pay-note">Not imported</p>
+              </article>
+              <article class="gst-pay-import-card">
+                <h4>Electronic Credit / ITC Ledger</h4>
+                <p>GST Portal Electronic Credit Ledger export.</p>
+                <input id="gstPayItcFile" type="file" accept=".xlsx,.xlsm,.xls,.csv">
+                <div class="gst-pay-import-actions">
+                  <button id="gstPayImportItcBtn" type="button" class="primary">Import ITC Ledger</button>
+                  <button id="gstPayClearItcBtn" type="button" class="secondary danger-soft" data-pay-clear="GST_ITC_LEDGER">Clear</button>
+                </div>
+                <p id="gstPayItcImportNote" class="gst-pay-note">Not imported</p>
+              </article>
+            </div>
+            <div id="gstPaySummaryCards" class="sales-recon-cards gst-pay-summary-cards">
+              <span>GST Liability<strong id="gstPayCardLiability">—</strong></span>
+              <span>ITC Utilised<strong id="gstPayCardItcUtil">—</strong></span>
+              <span>Cash Utilised<strong id="gstPayCardCashUtil">—</strong></span>
+              <span>GST Tax Paid through Cash<strong id="gstPayCardTaxCash">—</strong></span>
+              <span>Interest Paid<strong id="gstPayCardInterest">—</strong></span>
+              <span>Late Fee Paid<strong id="gstPayCardLate">—</strong></span>
+              <span>Total Cash Paid<strong id="gstPayCardTotalCash">—</strong></span>
+              <span>Closing Cash Ledger Balance<strong id="gstPayCardCashClose">—</strong></span>
+              <span>Closing ITC Balance<strong id="gstPayCardItcClose">—</strong></span>
+            </div>
+            <p id="gstPayChallanSummaryNote" class="gst-pay-note">Challan summary appears after Challan History import.</p>
+            <p class="threeway-advice">Cash utilised and Interest / Late Fee come from Electronic Cash Ledger debit rows. Challan paid amount is deposit only — not utilisation.</p>
+          </section>
+
+          <section id="gstPayCashPane" class="gst-pay-subpane hidden">
+            <h4>Electronic Cash Ledger</h4>
+            <p class="threeway-advice">Month-wise opening / deposit / utilisation / closing. Closing mismatch vs portal Balance is marked in red.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>Opening Balance</th>
+                    <th>Cash Deposited</th>
+                    <th>Other Credits</th>
+                    <th>Tax Utilised</th>
+                    <th>Interest Utilised</th>
+                    <th>Late Fee Utilised</th>
+                    <th>Penalty Utilised</th>
+                    <th>Other Debit</th>
+                    <th>Closing Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayCashLedgerRows">
+                  <tr><td colspan="10">Import Electronic Cash Ledger to begin.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h4>Head-wise drilldown (IGST / CGST / SGST / CESS)</h4>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period · Head</th>
+                    <th>Tax</th>
+                    <th>Interest</th>
+                    <th>Penalty</th>
+                    <th>Fee (Late Fee)</th>
+                    <th>Others</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayCashCompareRows">
+                  <tr><td colspan="7">Head-wise amounts appear after Cash Ledger import.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="gstPayItcPane" class="gst-pay-subpane hidden">
+            <h4>Electronic Credit / ITC Ledger</h4>
+            <p class="threeway-advice">Opening / credit / utilised / closing ITC by head. Portal Balance Available is the closing source.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>Opening IGST</th>
+                    <th>Opening CGST</th>
+                    <th>Opening SGST</th>
+                    <th>Opening CESS</th>
+                    <th>ITC Credit IGST</th>
+                    <th>ITC Credit CGST</th>
+                    <th>ITC Credit SGST</th>
+                    <th>ITC Credit CESS</th>
+                    <th>ITC Utilised IGST</th>
+                    <th>ITC Utilised CGST</th>
+                    <th>ITC Utilised SGST</th>
+                    <th>ITC Utilised CESS</th>
+                    <th>Closing IGST</th>
+                    <th>Closing CGST</th>
+                    <th>Closing SGST</th>
+                    <th>Closing CESS</th>
+                    <th>Closing Total</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayItcLedgerRows">
+                  <tr><td colspan="18">Import Electronic Credit / ITC Ledger to begin.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h4>Utilisation Matrix</h4>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th colspan="5">Cross-head utilisation</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayItcMatrixRows">
+                  <tr><td colspan="5">Cross-head utilisation breakup not available in Electronic Credit Ledger source</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Head</th>
+                    <th>Portal Utilisation</th>
+                    <th>Tally Utilisation</th>
+                    <th>Difference</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayItcCompareRows">
+                  <tr><td colspan="4">Tally utilisation comparison appears when Tally GST mapping is available.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="gstPayReconPane" class="gst-pay-subpane hidden">
+            <h4>Payment Reconciliation</h4>
+            <p class="threeway-advice">Match challan deposits to Cash Ledger “Amount deposited” credits. Do not match challans to tax-period debit rows.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>Payment Date</th>
+                    <th>Reference / Challan / CPIN/CIN</th>
+                    <th>GST Liability</th>
+                    <th>ITC Utilised</th>
+                    <th>Tax Paid through Cash</th>
+                    <th>Interest Paid</th>
+                    <th>Late Fee Paid</th>
+                    <th>Other Payment</th>
+                    <th>Total Cash Payment</th>
+                    <th>Tally Amount</th>
+                    <th>Difference</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayReconRows">
+                  <tr><td colspan="13">No payment reconciliation rows yet. Import Challan History and Cash Ledger.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h4>GSTR-3B vs Ledger (component-wise)</h4>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Period</th>
+                    <th>3B Tax Payable</th>
+                    <th>Cash Tax Debit</th>
+                    <th>ITC Debit</th>
+                    <th>Tax Diff</th>
+                    <th>3B Interest</th>
+                    <th>Cash Interest</th>
+                    <th>Interest Diff</th>
+                    <th>3B Late Fee</th>
+                    <th>Cash Fee</th>
+                    <th>Late Fee Diff</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayGstr3bLinkRows">
+                  <tr><td colspan="11">Import ledgers + GSTR-3B to compare Tax / Interest / Late Fee separately.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="gstPayAdjustPane" class="gst-pay-subpane hidden">
+            <h4>Tally Adjustment</h4>
+            <p class="threeway-advice">Differences that may need Tally action. <strong>Prepare Tally Entry</strong> builds a preview only — nothing is posted without explicit confirmation later.</p>
+            <div class="gstr1-summary-wrap recon-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Issue</th>
+                    <th>Period / Ref</th>
+                    <th>Portal Amount</th>
+                    <th>Tally Amount</th>
+                    <th>Difference</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="gstPayAdjustRows">
+                  <tr><td colspan="6">No adjustment candidates yet. Reconciliation differences will list here after imports are validated.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <details id="gstPayAdjustPreviewPanel" class="gstr2-summary-panel hidden" open>
+              <summary>Tally Entry Preview (not posted)</summary>
+              <div class="gst-pay-preview-grid">
+                <label>Voucher Date<input id="gstPayPreviewDate" readonly placeholder="—"></label>
+                <label>Voucher Type<input id="gstPayPreviewVoucherType" readonly placeholder="—"></label>
+                <label>Bank/Cash Ledger<input id="gstPayPreviewBank" list="tallyLedgerList" placeholder="Select after review"></label>
+                <label>IGST<input id="gstPayPreviewIgst" readonly placeholder="—"></label>
+                <label>CGST<input id="gstPayPreviewCgst" readonly placeholder="—"></label>
+                <label>SGST<input id="gstPayPreviewSgst" readonly placeholder="—"></label>
+                <label>CESS<input id="gstPayPreviewCess" readonly placeholder="—"></label>
+                <label>Interest<input id="gstPayPreviewInterest" readonly placeholder="—"></label>
+                <label>Late Fee<input id="gstPayPreviewLate" readonly placeholder="—"></label>
+                <label>Total Amount<input id="gstPayPreviewTotal" readonly placeholder="—"></label>
+                <label class="gst-pay-preview-narration">Narration<textarea id="gstPayPreviewNarration" readonly rows="2" placeholder="Preview narration will appear here"></textarea></label>
+              </div>
+              <div class="gst-pay-import-actions">
+                <button id="gstPayPrepareEntryBtn" type="button" class="secondary">Prepare Tally Entry</button>
+                <button id="gstPayPostEntryBtn" type="button" class="primary" disabled title="Disabled until explicit confirmation workflow is enabled">Post to Tally (disabled)</button>
+              </div>
+              <p class="threeway-advice">Automatic Tally create/alter is intentionally disabled in this scaffold.</p>
+            </details>
+          </section>
+        </section>
+      </section>
+      <section id="gstPaymentReviewPanel" class="gst-payment-review hidden"><div class="payment-review-head"><div><h3>GST Payment, Input Adjustment &amp; ITC Review</h3><p>Upload GST Payment List, Cash Ledger and GSTR-3B.</p></div><label>Cash / Bank Ledger<input id="gstPaymentBankLedger" list="tallyLedgerList" placeholder="Select Tally cash/bank ledger"></label></div><div id="gstPaymentReviewStatus" class="gst-next-note">Upload the reports one by one from Return Type.</div><div class="gstr1-summary-wrap"><table><thead><tr><th>Month / Date</th><th>Particulars</th><th>Cash Payment</th><th>Input IGST</th><th>Input CGST</th><th>Input SGST</th><th>ITC Available</th><th>Status</th></tr></thead><tbody id="gstPaymentReviewRows"></tbody></table></div></section>
+      <section id="gstResults" class="hidden">
+        <div class="gst-summary">
+          <span>Invoices<strong id="gstInvoices">0</strong></span><span>Invoice Value<strong id="gstInvoiceValue">0.00</strong></span>
+          <span>Taxable Value<strong id="gstTaxable">0.00</strong></span><span>IGST<strong id="gstIgst">0.00</strong></span>
+          <span>CGST<strong id="gstCgst">0.00</strong></span><span>SGST<strong id="gstSgst">0.00</strong></span>
+        </div>
+        <div id="gstMatchCounts" class="gst-match-counts hidden"></div>
+        <details id="gstr1SummaryPanel" class="gstr1-summary-panel hidden" open>
+          <summary>GSTR-1 Summary</summary>
+          <div class="gstr1-summary-wrap"><table>
+            <thead><tr><th>Particulars</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th></tr></thead>
+            <tbody id="gstr1SummaryRows"></tbody>
+          </table></div>
+        </details>
+        <div id="gstRateSummaries" class="gst-rate-summaries hidden">
+          <details><summary>Rate-wise Gross Sales</summary><div id="gstSalesRateSummary"></div></details>
+          <details class="note-rate-summary"><summary>Credit/Debit Note &amp; Sales Return Rate-wise</summary><div id="gstNotesRateSummary"></div></details>
+        </div>
+        <div id="gstTallyPanel" class="gst-tally-panel hidden">
+          <label>0% Purchase<input id="gstPurchaseLedger0" value="0% Purchase"></label><label>5% Purchase<input id="gstPurchaseLedger5" value="5% Purchase"></label>
+          <label>12% Purchase<input id="gstPurchaseLedger12" value="12% Purchase"></label><label>18% Purchase<input id="gstPurchaseLedger18" value="18% Purchase"></label>
+          <label>28% Purchase<input id="gstPurchaseLedger28" value="28% Purchase"></label><input id="gstPurchaseLedger" type="hidden" value="Purchase A/c"><label>Input IGST<input id="gstIgstLedger" value="Input IGST"></label>
+          <label>Input CGST<input id="gstCgstLedger" value="Input CGST"></label><label>Input SGST<input id="gstSgstLedger" value="Input SGST"></label>
+          <label>Round Off<input id="gstRoundLedger" value="Round Off"></label><button id="gstSendTallyBtn" type="button" class="primary tally-direct">Send Selected to Tally</button>
+        </div>
+        <div id="gstSalesPanel" class="gst-sales-panel hidden">
+          <div class="gst-sales-title invoice-amendment-title"><div><strong>Invoice Amendment</strong></div><button id="toggleInvoiceAmendment" type="button" class="amendment-arrow" aria-expanded="false" title="Open Invoice Amendment">⌄</button></div>
+          <div id="invoiceAmendmentBody" class="invoice-amendment-body hidden">
+          <div class="gst-rate-box"><b>0%</b><div class="amendment-value-fields"><label>Taxable Less ₹<input id="salesLess0" type="number" min="0" step="0.01" value="0"></label><label>Taxable Add ₹<input id="salesAdd0" type="number" min="0" step="0.01" value="0"></label></div><div id="salesTaxPreview0" class="amendment-tax-preview"></div><label>Sales Ledger<input id="salesLedger0" value="Sales 0%"></label></div>
+          <div class="gst-rate-box"><b>5%</b><div class="amendment-value-fields"><label>Taxable Less ₹<input id="salesLess5" type="number" min="0" step="0.01" value="0"></label><label>Taxable Add ₹<input id="salesAdd5" type="number" min="0" step="0.01" value="0"></label></div><div id="salesTaxPreview5" class="amendment-tax-preview"></div><label>Sales Ledger<input id="salesLedger5" value="Sales 5%"></label></div>
+          <div class="gst-rate-box"><b>12%</b><div class="amendment-value-fields"><label>Taxable Less ₹<input id="salesLess12" type="number" min="0" step="0.01" value="0"></label><label>Taxable Add ₹<input id="salesAdd12" type="number" min="0" step="0.01" value="0"></label></div><div id="salesTaxPreview12" class="amendment-tax-preview"></div><label>Sales Ledger<input id="salesLedger12" value="Sales 12%"></label></div>
+          <div class="gst-rate-box"><b>18%</b><div class="amendment-value-fields"><label>Taxable Less ₹<input id="salesLess18" type="number" min="0" step="0.01" value="0"></label><label>Taxable Add ₹<input id="salesAdd18" type="number" min="0" step="0.01" value="0"></label></div><div id="salesTaxPreview18" class="amendment-tax-preview"></div><label>Sales Ledger<input id="salesLedger18" value="Sales 18%"></label></div>
+          <div class="gst-rate-box"><b>28%</b><div class="amendment-value-fields"><label>Taxable Less ₹<input id="salesLess28" type="number" min="0" step="0.01" value="0"></label><label>Taxable Add ₹<input id="salesAdd28" type="number" min="0" step="0.01" value="0"></label></div><div id="salesTaxPreview28" class="amendment-tax-preview"></div><label>Sales Ledger<input id="salesLedger28" value="Sales 28%"></label></div>
+          <input id="salesIgstLedger" type="hidden" value="Output IGST"><input id="salesCgstLedger" type="hidden" value="Output CGST">
+          <input id="salesSgstLedger" type="hidden" value="Output SGST"><input id="salesRoundLedger" type="hidden" value="Round Off">
+          <div class="invoice-amendment-actions"><button id="gstApplySalesAdjustment" type="button" class="secondary">Apply Invoice Amendment</button></div>
+          <p id="gstSalesAdjustmentNote">No amendment applied. Review invoice totals before Tally import.</p>
+          </div>
+          <div class="gst-sales-actions"><button id="gstSelectVisibleItems" type="button" class="secondary">Select Visible Rows</button><input id="gstSelectedItemName" list="tallyItemList" placeholder="Item for selected rows"><button id="gstApplySelectedItem" type="button" class="secondary">Apply Item to Selected</button><button id="gstSendSalesTallyBtn" type="button" class="primary tally-direct">Send Sales to Tally</button></div>
+        </div>
+        <div id="gstTableFilters" class="gst-table-filters hidden">
+          <input id="gstFilterGstin" placeholder="Filter GSTIN"><input id="gstFilterParty" placeholder="Filter Party / Ledger">
+          <input id="gstFilterInvoice" placeholder="Filter Invoice No."><input id="gstFilterDate" placeholder="Filter Date">
+          <select id="gstFilterRate"><option value="">All GST Rates</option><option>0%</option><option>5%</option><option>12%</option><option>18%</option><option>28%</option></select>
+          <input id="gstFilterHsn" placeholder="Filter HSN"><input id="gstFilterStatus" placeholder="Filter Status"><button id="gstClearFilters" type="button" class="secondary">Clear</button>
+          <div class="gst-filter-totals"><span>Taxable <strong id="gstFilteredTaxable">0.00</strong></span><span>IGST <strong id="gstFilteredIgst">0.00</strong></span><span>CGST <strong id="gstFilteredCgst">0.00</strong></span><span>SGST <strong id="gstFilteredSgst">0.00</strong></span></div>
+        </div>
+        <datalist id="tallyItemList"></datalist>
+        <div class="gst-table-wrap"><table><thead><tr><th>Select</th><th>GSTIN</th><th>Party / Tally Ledger</th><th>Invoice No.</th><th>Date</th><th>Invoice Value</th><th>Item / Tally Stock Item</th><th>HSN Code</th><th>Quantity</th><th>Taxable</th><th>GST Rate</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Status</th></tr></thead><tbody id="gstRows"></tbody></table></div>
+        <section id="gstNotesSection" class="gst-notes-section hidden">
+          <div class="gst-notes-heading"><div><h3>Credit/Debit Note &amp; Sales Return</h3><p>These entries are separated from Sales Invoices.</p></div>
+            <label>Import in Tally as<select id="gstNoteVoucherType"><option>Credit Note</option><option>Debit Note</option><option>Journal</option><option>Do not import</option></select></label>
+            <button id="gstSelectAllNotes" type="button" class="secondary">Select All Notes</button><button id="gstSendNotesTallyBtn" type="button" class="primary tally-direct">Send Notes to Tally</button>
+          </div>
+          <div class="gst-note-filters">
+            <input id="gstNoteFilterParty" placeholder="Filter Party / Ledger"><input id="gstNoteFilterNumber" placeholder="Filter Note No.">
+            <input id="gstNoteFilterDate" placeholder="Filter Date"><select id="gstNoteFilterRate"><option value="">All GST Rates</option><option>0%</option><option>5%</option><option>12%</option><option>18%</option><option>28%</option></select>
+            <input id="gstNoteFilterHsn" placeholder="Filter HSN"><button id="gstClearNoteFilters" type="button" class="secondary">Clear</button>
+            <div class="gst-note-summary-line"><b>Filtered Total</b><div class="gst-filter-totals"><span>Taxable <strong id="gstNoteFilteredTaxable">0.00</strong></span><span>IGST <strong id="gstNoteFilteredIgst">0.00</strong></span><span>CGST <strong id="gstNoteFilteredCgst">0.00</strong></span><span>SGST <strong id="gstNoteFilteredSgst">0.00</strong></span></div></div>
+          </div>
+          <div class="gst-note-item-tools">
+            <div class="gst-sales-actions"><button id="gstSelectVisibleNotes" type="button" class="secondary">Select All Visible Notes</button><input id="gstSelectedNoteItemName" list="tallyItemList" placeholder="Item for selected notes"><button id="gstApplySelectedNoteItem" type="button" class="secondary">Apply Item to Selected</button></div>
+          </div>
+          <div class="gst-table-wrap gst-note-table"><table><thead><tr><th>Select</th><th>Party / Tally Ledger</th><th>Note No.</th><th>Date</th><th>Invoice Value</th><th>Item / Tally Stock Item</th><th>HSN Code</th><th>Quantity</th><th>Taxable</th><th>GST Rate</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Destination</th></tr></thead><tbody id="gstNoteRows"></tbody></table></div>
+        </section>
+        <p class="gst-next-note">GST Portal data imported. Select matching Tally Sales/Purchase data next to complete reconciliation.</p>
+      </section>
+    </form>
+    <!-- Keep outside the main form: a nested <form> here previously closed the GST dialog form early,
+         pushing #gstThreeWayPanel below a full-viewport empty form so recon tabs looked "gone" after XLSX import. -->
+    <dialog id="purchaseTallyPreviewDialog" class="purchase-tally-preview-dialog">
+      <form method="dialog" class="purchase-tally-preview-form">
+        <h2>Send to Tally — Review</h2>
+        <p class="gst-next-note">Confirm voucher dates before posting. Voucher Date and Supplier Invoice Date stay separate.</p>
+        <div class="purchase2a-table-wrap"><table>
+          <thead><tr>
+            <th>Voucher Date</th><th>Supplier Inv No.</th><th>Supplier Inv Date</th><th>Supplier</th><th>GSTIN</th>
+            <th>Purchase Ledger</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>Cess</th><th>Total</th>
+            <th>GSTR-2A</th><th>GSTR-2B</th><th>Tally</th><th>ITC</th>
+          </tr></thead>
+          <tbody id="purchaseTallyPreviewRows"></tbody>
+        </table></div>
+        <p id="purchaseTallyPreviewIssues" class="gst-pay-note"></p>
+        <details id="purchaseTallySkippedPanel" class="purchase-preview-skipped hidden" open>
+          <summary>Problematic / Skipped Invoices <strong id="purchaseTallySkippedCount">0</strong></summary>
+          <p>These invoices will not be sent. Review the invoice number and reason below.</p>
+          <div class="purchase2a-table-wrap"><table>
+            <thead><tr><th>Invoice No.</th><th>Supplier</th><th>GSTIN</th><th>Invoice Date</th><th>GSTR-2B Period</th><th>Reason</th></tr></thead>
+            <tbody id="purchaseTallySkippedRows"></tbody>
+          </table></div>
+        </details>
+        <div class="modal-actions">
+          <button value="cancel" class="secondary">Cancel</button>
+          <button id="purchaseTallyPreviewProblematicConfirm" value="problematic" class="secondary danger-soft">Send ITC Difference 0 to Tally</button>
+          <button id="purchaseTallyPreviewConfirm" value="default" class="primary tally-direct">Send Ready 0 to Tally</button>
+        </div>
+      </form>
+    </dialog>
+  </dialog>
+  <dialog id="bulkSalesDialog" class="modal bulk-sales-modal">
+    <form method="dialog">
+      <div class="bulk-head"><div><h2>Sales/Credit/Debit Bulk Upload</h2><p>Set the rules, review every voucher, then send only selected entries to Tally.</p></div><button value="cancel" class="secondary">Back to Dashboard</button></div>
+      <section class="bulk-form-grid">
+        <label>Entry Type<select id="bulkVoucherType"><option>Sales Invoice</option><option>Credit Note</option><option>Debit Note</option></select></label>
+        <label>Tally Voucher Type<input id="bulkTallyVoucherType" list="tallyVoucherTypeList" value="Sales" placeholder="Select synced Tally voucher type"></label>
+        <datalist id="tallyVoucherTypeList"></datalist>
+        <label>Starting Invoice No.<input id="bulkStartInvoice" value="INV0001" placeholder="Example: INV0001"></label>
+        <label>Starting Date<input id="bulkStartDate" type="date"></label><label>Ending Date<input id="bulkEndDate" type="date"></label>
+        <label>Number of Entries<input id="bulkEntryCount" type="number" min="1" max="5000" value="20"></label>
+        <label>Cash Entries<input id="bulkCashCount" type="number" min="0" value="5"></label>
+        <label>Total Amount ₹<input id="bulkTotalAmount" type="number" min="0.01" step="0.01" placeholder="Total of all vouchers"></label>
+        <label>GST Rate<select id="bulkGstRate"><option value="0">0%</option><option value="5">5%</option><option value="12" selected>12%</option><option value="18">18%</option><option value="28">28%</option></select></label>
+        <label>Tax Type<select id="bulkTaxType"><option value="local">CGST + SGST</option><option value="igst">IGST</option></select></label>
+        <label><span id="bulkItemNameLabel">Item Name</span><input id="bulkItemName" list="tallyItemList" value="Items" placeholder="Tally stock item"></label>
+        <label>Sales Ledger Name<input id="bulkLedgerName" value="Sales 12%" placeholder="Rate-wise Tally ledger"></label>
+        <label>Quantity per Invoice<input id="bulkQuantity" type="number" min="0.001" step="0.001" value="1"></label>
+        <label>Person Amount From ₹<input id="bulkPersonMin" type="number" min="0" step="0.01" value="100"></label>
+        <label>Person Amount To ₹<input id="bulkPersonMax" type="number" min="0" step="0.01" value="1000"></label>
+        <label>Cash Amount From ₹<input id="bulkCashMin" type="number" min="0" step="0.01" value="50"></label>
+        <label>Cash Amount To ₹<input id="bulkCashMax" type="number" min="0" step="0.01" value="500"></label>
+        <label class="bulk-wide">Person / Party Names <small>(one name per line; blank = automatic names)</small><textarea id="bulkPartyNames" rows="3" placeholder="Rahul Das&#10;Ananya Sharma&#10;Aarav Traders"></textarea></label>
+        <label class="bulk-wide">Optional Excel / CSV <small>(Party, Amount, Date, Invoice No., Item columns are accepted)</small><input id="bulkExcelFile" type="file" accept=".xlsx,.xlsm,.xls,.csv,.txt"></label>
+      </section>
+      <div class="bulk-actions"><button id="bulkGenerateBtn" type="button" class="primary">Generate Preview</button><button id="bulkSelectAllBtn" type="button" class="secondary hidden">Select All</button><button id="bulkSendBtn" type="button" class="primary tally-direct hidden">Send Selected to Tally</button></div>
+      <p id="bulkError" class="mapping-error hidden"></p><div id="bulkSummary" class="bulk-summary hidden"></div>
+      <div id="bulkPreviewWrap" class="bulk-preview hidden"><table><thead><tr><th>Select</th><th>Type</th><th>Invoice No.</th><th>Date</th><th>Party / Tally Ledger</th><th>Item / Income Ledger</th><th>Invoice Value</th><th>Taxable</th><th>GST Rate</th><th>IGST</th><th>CGST</th><th>SGST</th></tr></thead><tbody id="bulkPreviewRows"></tbody></table></div>
+    </form>
+  </dialog>
+  <dialog id="mappingDialog" class="modal mapping-modal">
+    <form method="dialog"><h2>Column Mapping</h2><p id="mappingFile"></p><div class="mapping-top"><label>Header row<select id="headerRow"></select></label><label>Mapping name<input id="profileName" placeholder="Example: HDFC Current Account"></label></div><div id="mappingFields" class="mapping-fields"></div><div class="mapping-preview"><table id="mappingPreview"></table></div><p class="mapping-help">Required: Date and Particulars. Use either Debit/Credit, or Amount with Dr/Cr. Mapping will be saved locally.</p><p id="mappingError" class="mapping-error hidden" role="alert"></p><div class="modal-actions"><button value="cancel" class="secondary">Cancel</button><button id="mappingSubmit" value="default" class="primary">Apply & Save Mapping</button></div></form>
+  </dialog>
+  <dialog id="licenseDialog" class="modal license-modal">
+    <form method="dialog"><h2>Buy or Activate Credits</h2><div class="device-box"><span>Your Device ID</span><strong id="deviceId"></strong><button id="copyDeviceBtn" type="button" class="secondary">Copy Device ID</button></div><p class="select-plan-label">Select a plan</p><div class="plan-list"><button type="button" class="plan-option selected" data-plan="200 pages - Rs 100">200 pages <strong>Rs 100</strong></button><button type="button" class="plan-option" data-plan="300 pages - Rs 150">300 pages <strong>Rs 150</strong></button><button type="button" class="plan-option" data-plan="500 pages - Rs 250">500 pages <strong>Rs 250</strong></button><button type="button" class="plan-option" data-plan="1000 pages - Rs 500">1000 pages <strong>Rs 500</strong></button><button type="button" class="plan-option" data-plan="Yearly 2500 pages - Rs 1000">Yearly 2500 pages <strong>Rs 1000</strong></button></div><label class="coupon-field">Coupon Code <small>(optional)</small><input id="couponCode" maxlength="24" placeholder="Enter coupon code"></label><button id="proceedPaymentBtn" type="button" class="primary payment-step-button">Proceed to Payment</button><div id="paymentArea" class="payment-area hidden"><img src="/payment-qr.jpeg?v=1.7.0-final" alt="UPI payment QR code"><div><span>Scan and pay for</span><strong id="paymentPlan">200 pages - Rs 100</strong><span id="paymentCoupon" class="coupon-confirm hidden"></span><span>UPI ID</span><strong id="upiId">pinkub0000-1@okaxis</strong><button id="copyUpiBtn" type="button" class="secondary">Copy UPI ID</button><button id="paymentDoneBtn" type="button" class="primary">I Have Completed Payment</button><button id="whatsappBtn" type="button" class="whatsapp-button hidden">Send Payment Details on WhatsApp</button></div></div><p id="paymentNote" class="payment-note hidden">After payment, send the screenshot and Device ID using the WhatsApp button. You will receive a License Key.</p><div class="license-separator"><span>Already have a License Key?</span></div><label>License Key<textarea id="licenseKey" rows="2" placeholder="Paste the License Key here"></textarea></label><p id="licenseError" class="mapping-error hidden"></p><div class="modal-actions"><button value="cancel" class="secondary">Close</button><button id="activateLicenseBtn" value="default" class="primary">Activate License</button></div></form>
+  </dialog>
+  <dialog id="tallySendOverlay" class="tally-send-overlay" aria-live="polite">
+    <div class="tally-send-card">
+      <div id="tallySendRing" class="tally-send-ring"><strong id="tallySendPercent">0%</strong></div>
+      <h2 id="tallySendTitle">Sending to Tally...</h2>
+      <p id="tallySendMessage">Please keep TallyPrime and the correct company open.</p>
+      <div class="tally-send-actions">
+        <button id="tallySendClose" type="button" class="secondary hidden">Close</button>
+        <button id="tallySendAgain" type="button" class="primary hidden">Try Again</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="itcDiffDialog" class="modal itc-diff-modal">
+    <form method="dialog" class="itc-diff-form">
+      <div class="itc-diff-header">
+        <div>
+          <h2>Available ITC Difference — Voucher Reconciliation</h2>
+          <p id="itcDiffSummaryText">Explains Net GSTR-2B ITC − Tally Booked (Section 4C) at voucher level.</p>
+        </div>
+        <div class="itc-diff-header-actions">
+          <button id="itcDiffExportBtn" type="button" class="secondary">Export Excel</button>
+          <button value="cancel" class="secondary">Close</button>
+        </div>
+      </div>
+      <div id="itcDiffCards" class="gst-summary recon-inline-summary">
+        <span>Net GSTR-2B ITC<strong id="itcDiffPortalNet">0.00</strong></span>
+        <span>Tally Booked (4C)<strong id="itcDiffTallyNet">0.00</strong></span>
+        <span>Available ITC Diff<strong id="itcDiffAvailable">0.00</strong></span>
+        <span>Sum of voucher diffs<strong id="itcDiffVoucherSum">0.00</strong></span>
+        <span>Balance<strong id="itcDiffBalanced">—</strong></span>
+      </div>
+      <div id="itcDiffCounts" class="gst-match-counts"></div>
+      <div class="gstr1-summary-wrap recon-table-wrap itc-diff-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th><th>Reason</th><th>GSTIN</th><th>Party Name</th>
+              <th>Invoice Number</th><th>Invoice Date</th>
+              <th>Portal Taxable</th><th>Tally Taxable</th>
+              <th>Portal ITC</th><th>Tally ITC</th><th>Difference</th>
+            </tr>
+          </thead>
+          <tbody id="itcDiffRows"></tbody>
+        </table>
+      </div>
+      <p id="itcDiffAdvice" class="threeway-advice"></p>
+    </form>
+  </dialog>
+  <dialog id="salesDiffDialog" class="modal itc-diff-modal">
+    <div class="itc-diff-form sales-diff-form">
+      <div class="itc-diff-header">
+        <div>
+          <h2>GST Portal Reported Difference</h2>
+          <p id="salesDiffSummaryText">Official portal comparison difference preserved from GSTR-1 JSON (not auto-corrected).</p>
+        </div>
+        <div class="itc-diff-header-actions">
+          <button id="salesDiffExportXlsxBtn" type="button" class="secondary">Export Excel</button>
+          <button id="salesDiffExportCsvBtn" type="button" class="secondary">Export CSV</button>
+          <button id="salesDiffCloseBtn" type="button" class="secondary">Close</button>
+        </div>
+      </div>
+      <div id="salesDiffPortalLabel" class="sales-diff-portal-label">GST Portal Reported Difference</div>
+      <div id="salesDiffCards" class="gst-summary recon-inline-summary">
+        <span>Month<strong id="salesDiffMonthLabel">—</strong></span>
+        <span>GSTR-1 Output GST<strong id="salesDiffPortalNet">0.00</strong></span>
+        <span>Tally Output GST<strong id="salesDiffTallyNet">0.00</strong></span>
+        <span>Output GST Diff<strong id="salesDiffAvailable">0.00</strong></span>
+      </div>
+      <div id="salesDiffTableWrap" class="sales-diff-table-wrap">
+        <table id="salesDiffTable">
+          <thead>
+            <tr>
+              <th>Status</th><th>GSTIN</th><th>Party Name</th><th>Invoice Number</th><th>Invoice Date</th><th>Voucher Type</th>
+              <th>GSTR-1 Taxable</th><th>Tally Taxable</th><th>Difference</th>
+              <th>GSTR-1 IGST</th><th>Tally IGST</th><th>GSTR-1 CGST</th><th>Tally CGST</th>
+              <th>GSTR-1 SGST</th><th>Tally SGST</th><th>GSTR-1 CESS</th><th>Tally CESS</th><th>Difference Reason</th>
+            </tr>
+          </thead>
+          <tbody id="salesDiffRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+  <script src="/app.js?v=1.7.65-purchase-fast-apply-item"></script>
+</body></html>
