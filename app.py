@@ -24,6 +24,7 @@ import webbrowser
 import urllib.error
 import urllib.request
 import zipfile
+import xlrd
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -365,6 +366,13 @@ def legacy_xls_to_xlsx(raw):
             raise ValueError("Old .xls conversion failed. Microsoft Excel is required." +
                              (f" {detail[:180]}" if detail else ""))
         return target.read_bytes()
+
+
+def legacy_xls_grid(raw):
+    """Read a legacy binary XLS export without requiring Microsoft Excel."""
+    book = xlrd.open_workbook(file_contents=raw)
+    sheet = book.sheet_by_index(0)
+    return [sheet.row_values(index) for index in range(sheet.nrows)]
 
 
 TALLY_HTTP_URL = "http://127.0.0.1:9000"
@@ -1325,10 +1333,11 @@ def parse_file(name, raw, bank_ledger, password=""):
         grid = extract_pdf_grid(raw, password)
         return prepare_grid(name, grid, bank_ledger)
     if suffix == ".xls":
-        # Old bank exports are binary XLS files.  Convert them with the
-        # installed Excel application before openpyxl reads the worksheet.
-        raw = legacy_xls_to_xlsx(raw)
-        suffix = ".xlsx"
+        grid = legacy_xls_grid(raw)
+        try:
+            return rows_from_grid(grid, bank_ledger), {"format": "Excel automatic"}
+        except ValueError:
+            return prepare_grid(name, grid, bank_ledger)
     if suffix in {".xlsx", ".xlsm"}:
         wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
         grid = list(wb.active.iter_rows(values_only=True))
