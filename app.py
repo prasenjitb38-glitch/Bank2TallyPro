@@ -24,7 +24,6 @@ import webbrowser
 import urllib.error
 import urllib.request
 import zipfile
-import xlrd
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -370,6 +369,7 @@ def legacy_xls_to_xlsx(raw):
 
 def legacy_xls_grid(raw):
     """Read a legacy binary XLS export without requiring Microsoft Excel."""
+    import xlrd
     book = xlrd.open_workbook(file_contents=raw)
     sheet = book.sheet_by_index(0)
     return [sheet.row_values(index) for index in range(sheet.nrows)]
@@ -1305,6 +1305,27 @@ def parse_bank_of_baroda_pdf(text, bank_ledger):
     return rows, number(opening_match["opening"]) if opening_match else 0, rows[-1].get("balance", 0)
 
 
+def parse_hdfc_pdf(text, bank_ledger):
+    """Parse HDFC statements with Withdrawal/Deposit/Closing columns."""
+    rows = []
+    pattern = re.compile(r"(?ms)^(?P<date>\d{2}/\d{2}/\d{4})\s+(?P<body>.*?)\s+(?P<value_date>\d{2}/\d{2}/\d{4})\s+(?P<debit>[\d,]+\.\d{2}|-)\s+(?P<credit>[\d,]+\.\d{2}|-)\s+(?P<balance>[\d,]+\.\d{2})\s*$")
+    for match in pattern.finditer(text):
+        withdrawal, deposit, balance = number(match["debit"]), number(match["credit"]), number(match["balance"])
+        body = re.sub(r"\s+", " ", match["body"]).strip()
+        ref_match = re.search(r"\b[A-Z0-9]{8,}\b", body)
+        rows.append(classify({
+            "date": datetime.strptime(match["date"], "%d/%m/%Y").strftime("%Y-%m-%d"),
+            "value_date": match["value_date"], "particulars": body,
+            "reference": ref_match.group() if ref_match else "",
+            "debit": withdrawal, "credit": deposit, "balance": balance,
+        }, bank_ledger))
+    if not rows:
+        raise ValueError("HDFC transaction rows were not found.")
+    opening = round(rows[0]["balance"] + rows[0]["debit"] - rows[0]["credit"], 2)
+    closing = rows[-1]["balance"]
+    return rows, opening, closing
+
+
 def parse_file(name, raw, bank_ledger, password=""):
     suffix = Path(name).suffix.lower()
     if suffix == ".pdf":
@@ -1365,6 +1386,9 @@ def parse_file(name, raw, bank_ledger, password=""):
                 "closing": closing,
                 "format": "Scanned PDF (Windows OCR)",
             }
+        if "Withdrawal Amount" in text and "Deposit Amount" in text and "Closing Balance" in text:
+            rows, opening, closing = parse_hdfc_pdf(text, bank_ledger)
+            return rows, {"opening": opening, "closing": closing, "format": "HDFC PDF (automatic mapping)"}
         grid = extract_pdf_grid(raw, password)
         return prepare_grid(name, grid, bank_ledger)
     if suffix == ".xls":
@@ -1797,7 +1821,15 @@ def make_tally_xml(rows, batch_id="", return_records=False):
             f"<PARTYLEDGERNAME>{xml_escape_tally_master(party_name)}</PARTYLEDGERNAME>"
             if party_name else ""
         )
-        date = str(row.get("date", "")).replace("-", "")
+        # Tally expects voucher dates as YYYYMMDD. Bank statements commonly
+        # provide DD-MM-YYYY; passing that through as DDMMYYYY makes Tally
+        # report the voucher date as missing/invalid.
+        raw_date = str(row.get("date", "")).strip().replace("/", "-")
+        date_match = re.fullmatch(r"(\d{2})-(\d{2})-(\d{4})", raw_date)
+        if date_match:
+            date = f"{date_match.group(3)}{date_match.group(2)}{date_match.group(1)}"
+        else:
+            date = raw_date.replace("-", "")
         index = len(records) + 1
         tracking_number = f"B2T-{batch_id[:6].upper()}-{index:05d}" if batch_id else ""
         tally_number = bank_voucher_number(row)
@@ -13932,7 +13964,8 @@ def main():
             port += 1
             if port > PORT + 20:
                 raise RuntimeError("Bank2Tally could not find a free local port.")
-    url = f"http://{HOST}:{port}"
+    browser_host = "127.0.0.1" if HOST in {"0.0.0.0", "::"} else HOST
+    url = f"http://{browser_host}:{port}"
     print(f"Bank2Tally is running at {url}")
     print("Close this window to stop the application.")
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()
