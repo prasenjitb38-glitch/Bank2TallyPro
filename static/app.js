@@ -700,7 +700,7 @@ function photoInvoiceDraftFromText(text) {
   const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1] || (clean.match(/\b(?:INV|BILL)[\s-]*([A-Z0-9][A-Z0-9\/-]{2,})\b/i)||[])[1];
   const invoiceCandidate=inv && !/^(dated|date|number|no|e)$/i.test(inv) ? inv : (clean.match(/\b[A-Z]{2,}\/\d{2,}\/\d{2}-\d{2}\b/i)||[])[0];
   const gstin=(clean.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z]\w\b/i)||[])[0];
-  const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1];
+  const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1] || (clean.match(/\b(\d{1,2})\s*[- ]\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*[- ]\s*(\d{2,4})\b/i)||[]).slice(1).join("-");
   const partyMatch=clean.match(/(?:buyer\s*\(\s*bill\s*to\s*\)|bill\s*to|billed\s*to|customer|party)\s*[:\-]?\s*(?:\n\s*)?([^\n]{3,60})/i);
   const party=partyMatch?.[1]?.replace(/\s{2,}/g," ").trim();
   const taxableMatch=clean.match(/taxable\s*(?:value)?\D{0,25}(\d[\d,]*(?:\.\d{1,2})?)/i);
@@ -712,7 +712,7 @@ function photoInvoiceDraftFromText(text) {
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
   const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
   if((party && !/^(no|number|date|gstin|invoice|dated)$/i.test(party)) || partyFallback) $("#photoInvoiceParty").value=(partyFallback||party).trim();
-  if(date){const p=date.split(/[\/-]/).map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;}
+  if(date){const parts=date.split(/[\/-]/); if(parts.length===3 && /^\d+$/.test(parts[1])){const p=parts.map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;} else {const m={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}[String(parts[1]).slice(0,3).toLowerCase()]; const d=Number(parts[2])<100?2000+Number(parts[2]):Number(parts[2]); if(m&&d) $("#photoInvoiceDate").value=`${d}-${String(m).padStart(2,"0")}-${String(Number(parts[0])).padStart(2,"0")}`;}}
   if(detectedRate){ const rate=Number(detectedRate); $("#photoInvoiceRate").value=String(taxTypeRate(rate)); }
   if(taxableMatch) $("#photoInvoiceTaxable").value=Number(taxableMatch[1].replace(/,/g,"")).toFixed(2);
   if(totalMatch) $("#photoInvoiceTotal").value=Number(totalMatch[1].replace(/,/g,"")).toFixed(2);
@@ -720,7 +720,7 @@ function photoInvoiceDraftFromText(text) {
   if(!taxableMatch){const numeric=[...clean.matchAll(/\b\d[\d,]+\.\d{2}\b/g)].map(m=>Number(m[0].replace(/,/g,""))).filter(v=>v>100); if(numeric.length>1) $("#photoInvoiceTaxable").value=Math.min(...numeric).toFixed(2);}
 }
 function taxTypeRate(componentRate){ const r=Number(componentRate||0); return r>0&&r<=14 ? r*2 : r; }
-$("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); if(!$("#photoInvoiceDate").value) $("#photoInvoiceDate").value=new Date().toISOString().slice(0,10); };
+$("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); };
 $("#photoInvoiceClearBtn").onclick = photoInvoiceReset;
 ["photoInvoiceTaxable","photoInvoiceRate"].forEach(id=>$("#"+id)?.addEventListener("input",photoInvoiceCalculateTotal));
 async function handlePhotoInvoiceFile(event) {
