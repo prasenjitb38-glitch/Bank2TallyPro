@@ -691,7 +691,7 @@ $("#openSalesModule").onclick = async () => {
 };
 // Mobile invoice photo entry: OCR creates a draft, while the user remains in control
 // of the reviewed values before a single Sales Invoice is posted to Tally.
-const photoInvoiceIds = ["photoInvoiceNo","photoInvoiceDate","photoInvoiceParty","photoInvoiceGstin","photoInvoiceItem","photoInvoiceQty","photoInvoiceTaxable","photoInvoiceRate","photoInvoiceTaxType","photoInvoiceTotal"];
+const photoInvoiceIds = ["photoInvoiceNo","photoInvoiceDate","photoInvoiceParty","photoInvoiceGstin","photoInvoiceItem","photoInvoiceHsn","photoInvoiceQty","photoInvoiceTaxable","photoInvoiceRate","photoInvoiceTaxType","photoInvoiceTotal"];
 function photoInvoiceSetMessage(text, error=false) { const el=$("#photoInvoiceMessage"); if(!el)return; el.textContent=text; el.style.color=error?"#b42318":""; }
 function photoInvoiceReset() { photoInvoiceIds.forEach(id=>{const el=$("#"+id); if(el) el.value="";}); $("#photoInvoiceQty").value="1"; $("#photoInvoiceItem").value="Items"; $("#photoInvoiceRate").value="12"; $("#photoInvoicePreview").classList.add("hidden"); $("#photoInvoiceImage").removeAttribute("src"); $("#photoInvoiceOcrText").textContent="Choose a photo to read invoice details."; photoInvoiceSetMessage("Review the draft, then send it to the connected Tally company."); }
 function photoInvoiceCalculateTotal() { const taxable=Number($("#photoInvoiceTaxable")?.value||0), rate=Number($("#photoInvoiceRate")?.value||0); if(taxable) $("#photoInvoiceTotal").value=(taxable*(1+rate/100)).toFixed(2); }
@@ -700,6 +700,7 @@ function photoInvoiceDraftFromText(text) {
   const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1] || (clean.match(/\b(?:INV|BILL)[\s-]*([A-Z0-9][A-Z0-9\/-]{2,})\b/i)||[])[1];
   const invoiceCandidate=inv && !/^(dated|date|number|no|e)$/i.test(inv) ? inv : (clean.match(/\b[A-Z]{2,}\/\d{2,}\/\d{2}-\d{2}\b/i)||[])[0];
   const gstin=(clean.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z]\w\b/i)||[])[0];
+  const hsn=(clean.match(/(?:hsn|sac)[^0-9]{0,15}(\d{4,8})/i)||[])[1];
   const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1] || (clean.match(/\b(\d{1,2})\s*[- ]\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*[- ]\s*(\d{2,4})\b/i)||[]).slice(1).join("-");
   const partyMatch=clean.match(/(?:buyer\s*\(\s*bill\s*to\s*\)|bill\s*to|billed\s*to|customer|party)\s*[:\-]?\s*(?:\n\s*)?([^\n]{3,60})/i);
   const party=partyMatch?.[1]?.replace(/\s{2,}/g," ").trim();
@@ -711,6 +712,7 @@ function photoInvoiceDraftFromText(text) {
   const anyRate=(clean.match(/\b(5|12|18|28)\s*%/i)||[])[1];
   if(invoiceCandidate) $("#photoInvoiceNo").value=invoiceCandidate;
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
+  if(hsn) $("#photoInvoiceHsn").value=hsn;
   const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
   if((party && !/^(no|number|date|gstin|invoice|dated)$/i.test(party)) || partyFallback) $("#photoInvoiceParty").value=(partyFallback||party).trim();
   if(date){const parts=date.split(/[\/-]/); if(parts.length===3 && /^\d+$/.test(parts[1])){const p=parts.map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;} else {const m={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}[String(parts[1]).slice(0,3).toLowerCase()]; const d=Number(parts[2])<100?2000+Number(parts[2]):Number(parts[2]); if(m&&d) $("#photoInvoiceDate").value=`${d}-${String(m).padStart(2,"0")}-${String(Number(parts[0])).padStart(2,"0")}`;}}
@@ -743,7 +745,7 @@ $("#photoInvoiceSendBtn")?.addEventListener("click", async event => {
   const invoiceNo=$("#photoInvoiceNo").value.trim(), party=$("#photoInvoiceParty").value.trim(), invoiceDate=$("#photoInvoiceDate").value, taxable=Number($("#photoInvoiceTaxable").value||0), total=Number($("#photoInvoiceTotal").value||0), rate=Number($("#photoInvoiceRate").value||0), qty=Number($("#photoInvoiceQty").value||1), taxType=$("#photoInvoiceTaxType").value;
   if(!invoiceNo||!invoiceDate||!party||taxable<=0||total<=0) return photoInvoiceSetMessage("Invoice no., date, party, taxable value and total are required.",true);
   const d=invoiceDate.split("-"); const displayDate=`${d[2]}-${d[1]}-${d[0]}`; const igst=taxType==="igst"?taxable*rate/100:0, cgst=taxType==="local"?taxable*rate/200:0, sgst=cgst;
-  const row={selected:true,ready_for_sales_tally:true,document_type:"Sales Invoice",invoice_no:invoiceNo,invoice_date:displayDate,party_name:party,party_ledger:party,gstin:$("#photoInvoiceGstin").value.trim(),invoice_value:total,taxable_value:taxable, sales_allocations:[{item_name:$("#photoInvoiceItem").value.trim()||"Items",quantity:qty,unit:"Pcs",rate,taxable_value:taxable,igst,cgst,sgst,cess:0}]};
+  const row={selected:true,ready_for_sales_tally:true,document_type:"Sales Invoice",invoice_no:invoiceNo,invoice_date:displayDate,party_name:party,party_ledger:party,gstin:$("#photoInvoiceGstin").value.trim(),invoice_value:total,taxable_value:taxable, sales_allocations:[{item_name:$("#photoInvoiceItem").value.trim()||"Items",hsn:$("#photoInvoiceHsn").value.trim(),quantity:qty,unit:"Pcs",rate,taxable_value:taxable,igst,cgst,sgst,cess:0}]};
   const button=event.currentTarget; button.disabled=true; button.textContent="Sending…"; photoInvoiceSetMessage("Sending the reviewed invoice to Tally…");
   try { const response=await fetch("/api/gst/sales/tally/send-one",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({row,ledgers:{}})}); const data=await response.json(); if(!response.ok) throw new Error(data.error||data.message||"Tally rejected the invoice."); photoInvoiceSetMessage(data.status==="CREATED"?"Invoice created in Tally successfully.":(data.message||"Tally response received.")); }
   catch(err){ photoInvoiceSetMessage(err.message||"Could not send to Tally.",true); }
