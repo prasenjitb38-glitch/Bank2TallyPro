@@ -715,6 +715,8 @@ function photoInvoiceDraftFromText(text) {
   if(hsn) $("#photoInvoiceHsn").value=hsn;
   const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
   if((party && !/^(no|number|date|gstin|invoice|dated)$/i.test(party)) || partyFallback) $("#photoInvoiceParty").value=(partyFallback||party).trim();
+  const itemLine=(clean.split("\n").map(line=>line.replace(/\s+/g," ").trim()).find(line=>/(rental|service|goods|product|particulars)/i.test(line)&&!/(invoice|customer|buyer|taxable|total|gstin|dated)/i.test(line)&&line.length>=6)||"");
+  if(itemLine) $("#photoInvoiceItem").value=itemLine.replace(/^(particulars|item)\s*[:\-]?\s*/i,"").trim();
   if(date){const parts=date.split(/[\/-]/); if(parts.length===3 && /^\d+$/.test(parts[1])){const p=parts.map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;} else {const m={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}[String(parts[1]).slice(0,3).toLowerCase()]; const d=Number(parts[2])<100?2000+Number(parts[2]):Number(parts[2]); if(m&&d) $("#photoInvoiceDate").value=`${d}-${String(m).padStart(2,"0")}-${String(Number(parts[0])).padStart(2,"0")}`;}}
   if(detectedRate || anyRate){ const rate=detectedRate ? taxTypeRate(Number(detectedRate)) : Number(anyRate); $("#photoInvoiceRate").value=String(rate); }
   if(taxableMatch) $("#photoInvoiceTaxable").value=Number(taxableMatch[1].replace(/,/g,"")).toFixed(2);
