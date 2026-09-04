@@ -689,6 +689,47 @@ $("#openSalesModule").onclick = async () => {
   openGstWorkspace("sales");
   try { await loadHsnMaster(); } catch (_) {}
 };
+// Mobile invoice photo entry: OCR creates a draft, while the user remains in control
+// of the reviewed values before a single Sales Invoice is posted to Tally.
+const photoInvoiceIds = ["photoInvoiceNo","photoInvoiceDate","photoInvoiceParty","photoInvoiceGstin","photoInvoiceItem","photoInvoiceQty","photoInvoiceTaxable","photoInvoiceRate","photoInvoiceTaxType","photoInvoiceTotal"];
+function photoInvoiceSetMessage(text, error=false) { const el=$("#photoInvoiceMessage"); if(!el)return; el.textContent=text; el.style.color=error?"#b42318":""; }
+function photoInvoiceReset() { photoInvoiceIds.forEach(id=>{const el=$("#"+id); if(el) el.value="";}); $("#photoInvoiceQty").value="1"; $("#photoInvoiceItem").value="Items"; $("#photoInvoiceRate").value="12"; $("#photoInvoicePreview").classList.add("hidden"); $("#photoInvoiceImage").removeAttribute("src"); $("#photoInvoiceOcrText").textContent="Choose a photo to read invoice details."; photoInvoiceSetMessage("Review the draft, then send it to the connected Tally company."); }
+function photoInvoiceCalculateTotal() { const taxable=Number($("#photoInvoiceTaxable")?.value||0), rate=Number($("#photoInvoiceRate")?.value||0); if(taxable) $("#photoInvoiceTotal").value=(taxable*(1+rate/100)).toFixed(2); }
+function photoInvoiceDraftFromText(text) {
+  const clean=String(text||"").replace(/\r/g,"");
+  const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1];
+  const gstin=(clean.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z]\w\b/i)||[])[0];
+  const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1];
+  const amounts=[...clean.matchAll(/(?:total|grand total|amount payable|taxable)\D{0,15}(\d[\d,]*(?:\.\d{1,2})?)/gi)].map(m=>Number(m[1].replace(/,/g,""))).filter(Boolean);
+  if(inv) $("#photoInvoiceNo").value=inv;
+  if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
+  if(date){const p=date.split(/[\/-]/).map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;}
+  if(amounts.length){ $("#photoInvoiceTotal").value=amounts[0].toFixed(2); const rate=Number($("#photoInvoiceRate").value||12); $("#photoInvoiceTaxable").value=(amounts[0]/(1+rate/100)).toFixed(2); }
+}
+$("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); if(!$("#photoInvoiceDate").value) $("#photoInvoiceDate").value=new Date().toISOString().slice(0,10); };
+$("#photoInvoiceClearBtn").onclick = photoInvoiceReset;
+["photoInvoiceTaxable","photoInvoiceRate"].forEach(id=>$("#"+id)?.addEventListener("input",photoInvoiceCalculateTotal));
+$("#photoInvoiceFile")?.addEventListener("change", async event => {
+  const file=event.target.files?.[0]; if(!file)return;
+  const preview=$("#photoInvoicePreview"), image=$("#photoInvoiceImage"), status=$("#photoInvoiceOcrStatus"), out=$("#photoInvoiceOcrText");
+  preview.classList.remove("hidden"); image.src=URL.createObjectURL(file); status.textContent="Reading photo…"; out.textContent="OCR is preparing the invoice draft.";
+  try {
+    if(!window.Tesseract) throw new Error("OCR library is still loading. Please try again in a moment.");
+    const result=await window.Tesseract.recognize(file,"eng",{logger:msg=>{if(msg.status)status.textContent=`${msg.status} ${Math.round((msg.progress||0)*100)}%`;}});
+    const text=String(result?.data?.text||"").trim(); photoInvoiceDraftFromText(text); status.textContent="Draft ready — review it"; out.textContent=text||"No text found. Enter the invoice values manually."; photoInvoiceSetMessage("OCR draft created. Check the invoice number, date, party, item and totals before sending.");
+  } catch(err) { status.textContent="Manual entry"; out.textContent=err.message||"OCR unavailable"; photoInvoiceSetMessage("Photo loaded. Enter the invoice values manually, then send."); }
+});
+$("#photoInvoiceSendBtn")?.addEventListener("click", async event => {
+  event.preventDefault();
+  const invoiceNo=$("#photoInvoiceNo").value.trim(), party=$("#photoInvoiceParty").value.trim(), invoiceDate=$("#photoInvoiceDate").value, taxable=Number($("#photoInvoiceTaxable").value||0), total=Number($("#photoInvoiceTotal").value||0), rate=Number($("#photoInvoiceRate").value||0), qty=Number($("#photoInvoiceQty").value||1), taxType=$("#photoInvoiceTaxType").value;
+  if(!invoiceNo||!invoiceDate||!party||taxable<=0||total<=0) return photoInvoiceSetMessage("Invoice no., date, party, taxable value and total are required.",true);
+  const d=invoiceDate.split("-"); const displayDate=`${d[2]}-${d[1]}-${d[0]}`; const igst=taxType==="igst"?taxable*rate/100:0, cgst=taxType==="local"?taxable*rate/200:0, sgst=cgst;
+  const row={selected:true,ready_for_sales_tally:true,document_type:"Sales Invoice",invoice_no:invoiceNo,invoice_date:displayDate,party_name:party,party_ledger:party,gstin:$("#photoInvoiceGstin").value.trim(),invoice_value:total,taxable_value:taxable, sales_allocations:[{item_name:$("#photoInvoiceItem").value.trim()||"Items",quantity:qty,unit:"Pcs",rate,taxable_value:taxable,igst,cgst,sgst,cess:0}]};
+  const button=event.currentTarget; button.disabled=true; button.textContent="Sending…"; photoInvoiceSetMessage("Sending the reviewed invoice to Tally…");
+  try { const response=await fetch("/api/gst/sales/tally/send-one",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({row,ledgers:{}})}); const data=await response.json(); if(!response.ok) throw new Error(data.error||data.message||"Tally rejected the invoice."); photoInvoiceSetMessage(data.status==="CREATED"?"Invoice created in Tally successfully.":(data.message||"Tally response received.")); }
+  catch(err){ photoInvoiceSetMessage(err.message||"Could not send to Tally.",true); }
+  finally { button.disabled=false; button.textContent="Send Invoice to Tally"; }
+});
 $("#openGstPaymentModule").onclick = () => {
   openGstWorkspace("payment");
 };

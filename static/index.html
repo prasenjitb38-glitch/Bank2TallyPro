@@ -26,6 +26,7 @@
         <button id="openGstModule" class="module-card gst-module-card" type="button"><span class="module-icon">GSTR2</span><div><h2>Purchase / GSTR-2</h2><p>Import GSTR-2A, GSTR-2B, MARG GSTR2 or Purchase Excel; reconcile and prepare reviewed Tally entries.</p><strong>Open Purchase / GSTR-2 →</strong></div></button>
         <button id="openGstReconModule" class="module-card gst-recon-module-card" type="button"><span class="module-icon">GST✓</span><div><h2>GST Reconciliation</h2><p>Import GSTR-2A, GSTR-2B and GSTR-3B; compare invoices, ITC and tax differences with correction guidance.</p><strong>Open 2A / 2B / 3B Reconciliation →</strong></div></button>
         <button id="openSalesModule" class="module-card sales-module-card" type="button"><span class="module-icon">SALE</span><div><h2>Sales / GSTR-1</h2><p>Import GSTR-1 or sales Excel; match GSTIN, ledgers, items, HSN/SAC and notes.</p><strong>Open Sales Module</strong></div></button>
+        <button id="openPhotoInvoiceModule" class="module-card photo-invoice-module-card" type="button"><span class="module-icon">📷</span><div><h2>Photo Invoice Entry</h2><p>Take a mobile invoice photo, review the details and send the invoice to Tally.</p><strong>Open Photo Invoice Entry →</strong></div></button>
         <button id="openBulkSalesModule" class="module-card bulk-sales-module-card" type="button"><span class="module-icon">BULK</span><div><h2>Sales/Credit/Debit Bulk Upload</h2><p>Create different-value Sales, Credit Note or Debit Note vouchers from rules or an Excel file.</p><strong>Open Bulk Voucher Builder →</strong></div></button>
         <button id="openGstPaymentModule" class="module-card payment-module-card" type="button"><span class="module-icon">PMT</span><div><h2>GST Payment & ITC</h2><p>Import GST payment, cash and credit ledger files for reviewed tax entries.</p><strong>Open Payment Module</strong></div></button>
         <button id="openExcelVoucherModule" class="module-card excel-module-card" type="button"><span class="module-icon">XLS</span><div><h2>Excel to Vouchers</h2><p>Receipt, Payment, Expense, Journal, Credit Note and Debit Note from Excel.</p><strong>Open Excel Module</strong></div></button>
@@ -54,6 +55,29 @@
     </section>
     </section>
   </main>
+  <dialog id="photoInvoiceDialog" class="modal photo-invoice-modal">
+    <form method="dialog">
+      <div class="gst-heading"><div><h2>Photo Invoice Entry</h2><p>Take a clear invoice photo. OCR reads a first draft; review every field before sending to Tally.</p></div><button value="cancel" class="secondary">Back to Dashboard</button></div>
+      <section class="photo-invoice-upload">
+        <label class="photo-drop"><span>📷</span><strong>Take photo / choose invoice</strong><small>On mobile, the camera opens automatically.</small><input id="photoInvoiceFile" type="file" accept="image/*" capture="environment"></label>
+        <div id="photoInvoicePreview" class="photo-invoice-preview hidden"><img id="photoInvoiceImage" alt="Invoice preview"><div><strong id="photoInvoiceOcrStatus">Ready</strong><p id="photoInvoiceOcrText">Choose a photo to read invoice details.</p></div></div>
+      </section>
+      <div class="photo-invoice-form">
+        <label>Invoice No.<input id="photoInvoiceNo" placeholder="INV-001"></label>
+        <label>Invoice Date<input id="photoInvoiceDate" type="date"></label>
+        <label>Party / Customer Ledger<input id="photoInvoiceParty" list="tallyLedgerList" placeholder="Customer ledger in Tally"></label>
+        <label>GSTIN (optional)<input id="photoInvoiceGstin" placeholder="22AAAAA0000A1Z5"></label>
+        <label class="photo-wide">Item / Stock Item<input id="photoInvoiceItem" list="tallyItemList" value="Items"></label>
+        <label>Quantity<input id="photoInvoiceQty" type="number" min="0.001" step="0.001" value="1"></label>
+        <label>Taxable Value ₹<input id="photoInvoiceTaxable" type="number" min="0" step="0.01"></label>
+        <label>GST Rate %<select id="photoInvoiceRate"><option value="0">0%</option><option value="5">5%</option><option value="12" selected>12%</option><option value="18">18%</option><option value="28">28%</option></select></label>
+        <label>Tax type<select id="photoInvoiceTaxType"><option value="local">CGST + SGST</option><option value="igst">IGST</option></select></label>
+        <label>Invoice Total ₹<input id="photoInvoiceTotal" type="number" min="0" step="0.01"></label>
+      </div>
+      <p id="photoInvoiceMessage" class="gst-next-note">Review the draft, then send it to the connected Tally company.</p>
+      <div class="modal-actions"><button id="photoInvoiceClearBtn" type="button" class="secondary">Clear</button><button id="photoInvoiceSendBtn" type="button" class="primary tally-direct">Send Invoice to Tally</button></div>
+    </form>
+  </dialog>
   <dialog id="hsnMasterDialog" class="modal hsn-master-modal">
     <form method="dialog">
       <div class="gst-heading"><div><h2>Offline HSN Master</h2><p>All HSN and Item data stays on this computer.</p></div><button value="cancel" class="secondary">Close</button></div>
@@ -1159,5 +1183,5 @@
       </div>
     </div>
   </dialog>
-  <script src="/app.js?v=1.7.65-purchase-fast-apply-item"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><script src="/app.js?v=1.7.66-photo-invoice"></script>
 </body></html>
