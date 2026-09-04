@@ -697,12 +697,15 @@ function photoInvoiceReset() { photoInvoiceIds.forEach(id=>{const el=$("#"+id); 
 function photoInvoiceCalculateTotal() { const taxable=Number($("#photoInvoiceTaxable")?.value||0), rate=Number($("#photoInvoiceRate")?.value||0); if(taxable) $("#photoInvoiceTotal").value=(taxable*(1+rate/100)).toFixed(2); }
 function photoInvoiceDraftFromText(text) {
   const clean=String(text||"").replace(/\r/g,"");
-  const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1];
+  const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1] || (clean.match(/\b(?:INV|BILL)[\s-]*([A-Z0-9][A-Z0-9\/-]{2,})\b/i)||[])[1];
   const gstin=(clean.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z]\w\b/i)||[])[0];
   const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1];
-  const amounts=[...clean.matchAll(/(?:total|grand total|amount payable|taxable)\D{0,15}(\d[\d,]*(?:\.\d{1,2})?)/gi)].map(m=>Number(m[1].replace(/,/g,""))).filter(Boolean);
+  const partyMatch=clean.match(/(?:bill\s*to|billed\s*to|customer|buyer|party)\s*[:\-]?\s*([^\n]{3,60})/i);
+  const party=partyMatch?.[1]?.replace(/\s{2,}/g," ").trim();
+  const amounts=[...clean.matchAll(/(?:grand\s*total|total\s*amount|amount\s*payable|net\s*amount|taxable\s*value|taxable)\D{0,25}(\d[\d,]*(?:\.\d{1,2})?)/gi)].map(m=>Number(m[1].replace(/,/g,""))).filter(v=>v>0);
   if(inv) $("#photoInvoiceNo").value=inv;
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
+  if(party && !/^(no|number|date|gstin|invoice)$/i.test(party)) $("#photoInvoiceParty").value=party;
   if(date){const p=date.split(/[\/-]/).map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;}
   if(amounts.length){ $("#photoInvoiceTotal").value=amounts[0].toFixed(2); const rate=Number($("#photoInvoiceRate").value||12); $("#photoInvoiceTaxable").value=(amounts[0]/(1+rate/100)).toFixed(2); }
 }
