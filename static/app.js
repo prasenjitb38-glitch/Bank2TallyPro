@@ -2,6 +2,7 @@ let rows = [];
 let statementSummaries = [];
 let statementSequence = 0;
 let filter = "All";
+const forceFreshStatement = new URLSearchParams(window.location.search).get("fresh") === "1";
 const $ = selector => document.querySelector(selector);
 document.title = "Bank2Tally Suite v1.7.0";
 const brandNode = document.querySelector(".brand");
@@ -62,6 +63,17 @@ let purchase2aFilters = {
 let gstReconDatasetCounts = {};
 let gstReconDatasetsLoaded = new Set();
 let gstReconSessionLoadSeq = 0;
+
+if (forceFreshStatement) {
+  window.addEventListener("pageshow", () => {
+    rows = [];
+    statementSummaries = [];
+    statementSequence = 0;
+    history.replaceState(null, "", window.location.pathname);
+    render();
+    showMessage("New statement session ready.");
+  }, { once: true });
+}
 
 function ensureGstReconPanelVisible() {
   if (activeGstModule !== "threeway") return;
@@ -362,7 +374,15 @@ $("#activateLicenseBtn").onclick = async event => {
   showMessage(`License activated. ${result.remaining} credits available.`);
 };
 
-$("#refreshBtn").onclick = () => location.reload();
+$("#refreshBtn").onclick = () => {
+  rows = [];
+  statementSummaries = [];
+  statementSequence = 0;
+  $("#fileInput").value = "";
+  render();
+  showMessage("New statement session ready.");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
 $("#gstRefreshBtn").onclick = async event => {
   event.preventDefault();
   event.stopPropagation();
@@ -6999,14 +7019,23 @@ function transactionBalanceFingerprint(row) {
   ].join("|");
 }
 
+function statementDateKey(value) {
+  const text = String(value || "").trim();
+  let match = text.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  match = text.match(/^(\d{2})[/.](\d{2})[/.](\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  return text;
+}
+
 function chronologicalRows(sourceRows) {
   const hasBalance = row => row.balance_available === true ||
     (row.balance !== null && row.balance !== undefined && row.balance !== "");
   const balanceRows = sourceRows.filter(hasBalance);
   const newestFirst = balanceRows.length > 1 &&
-    String(balanceRows[0].date || "") > String(balanceRows[balanceRows.length - 1].date || "");
+    statementDateKey(balanceRows[0].date) > statementDateKey(balanceRows[balanceRows.length - 1].date);
   return balanceRows.map((row, index) => ({ row, index })).sort((a, b) => {
-    const dateOrder = String(a.row.date || "").localeCompare(String(b.row.date || ""));
+    const dateOrder = statementDateKey(a.row.date).localeCompare(statementDateKey(b.row.date));
     if (dateOrder) return dateOrder;
     const orderA = Number(a.row._statementOrder);
     const orderB = Number(b.row._statementOrder);
@@ -7095,8 +7124,8 @@ function rebalanceStatementBalances() {
   if (!groups.size || !statementSummaries.length) return;
 
   const ordered = [...statementSummaries].sort((a, b) =>
-    String(a.startDate || "").localeCompare(String(b.startDate || "")) ||
-    String(a.endDate || "").localeCompare(String(b.endDate || ""))
+    statementDateKey(a.startDate).localeCompare(statementDateKey(b.startDate)) ||
+    statementDateKey(a.endDate).localeCompare(statementDateKey(b.endDate))
   );
   let previousClosing = null;
   for (const summary of ordered) {
@@ -7121,7 +7150,7 @@ function rebalanceStatementBalances() {
 
 function sortRowsByDate() {
   rows.sort((a, b) =>
-    String(a.date || "").localeCompare(String(b.date || "")) ||
+    statementDateKey(a.date).localeCompare(statementDateKey(b.date)) ||
     Number(a._statementId || 0) - Number(b._statementId || 0) ||
     Number(a._statementOrder || 0) - Number(b._statementOrder || 0)
   );
@@ -7163,12 +7192,12 @@ function rememberStatementBalance(fileRows, meta = {}) {
 function statementBalances() {
   if (!statementSummaries.length) return balanceSummaryForRows(rows);
   const ordered = [...statementSummaries].sort((a, b) =>
-    String(a.startDate || "").localeCompare(String(b.startDate || "")) ||
-    String(a.endDate || "").localeCompare(String(b.endDate || ""))
+    statementDateKey(a.startDate).localeCompare(statementDateKey(b.startDate)) ||
+    statementDateKey(a.endDate).localeCompare(statementDateKey(b.endDate))
   );
   const latest = [...statementSummaries].sort((a, b) =>
-    String(a.endDate || "").localeCompare(String(b.endDate || "")) ||
-    String(a.startDate || "").localeCompare(String(b.startDate || ""))
+    statementDateKey(a.endDate).localeCompare(statementDateKey(b.endDate)) ||
+    statementDateKey(a.startDate).localeCompare(statementDateKey(b.startDate))
   ).pop();
   return { opening: ordered[0].opening, closing: latest.closing };
 }
