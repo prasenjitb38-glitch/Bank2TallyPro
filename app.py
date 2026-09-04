@@ -11042,7 +11042,17 @@ def send_one_gst_sales_voucher_to_tally(row, ledger_config, return_period="", to
             "missing_master": None,
             "tally_sales_count": len(scoped),
         }
-    raw = make_gst_sales_xml([item], ledger_config or {}, fresh_remote_id=True)
+    # Create missing customer, Sales/GST ledgers and stock item automatically
+    # before posting the first photo invoice.
+    ensured = ensure_gst_party_ledgers([item], ledger_config or {})
+    party_map = ensured.get("mappings") or {}
+    party_key = gst_party_ledger(item).lower()
+    if party_map.get(party_key):
+        item["party_ledger"] = party_map[party_key]
+    resolved_config = dict(ledger_config or {})
+    resolved_config.update(ensured.get("salesLedgers") or {})
+    resolved_config.update(ensured.get("taxLedgers") or {})
+    raw = make_gst_sales_xml([item], resolved_config, fresh_remote_id=True)
     try:
         # Use the configured local/remote Connector so a phone browser can
         # submit an invoice to the computer where TallyPrime is running.
