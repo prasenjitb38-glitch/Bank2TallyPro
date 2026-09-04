@@ -536,6 +536,15 @@ body:has(.account-modal[open]){overflow:hidden}
   .account-login-panel input{max-width:100%}
   .account-auth-actions{gap:6px}
   .account-auth-actions button{min-width:0;padding:8px 5px}
+  .photo-invoice-modal{width:calc(100vw - 16px);max-width:none;margin:8px auto}
+  .photo-invoice-modal form{padding:12px!important;overflow-y:auto;max-height:94vh}
+  .photo-invoice-upload{grid-template-columns:1fr;gap:10px}
+  .photo-invoice-form{grid-template-columns:1fr 1fr;gap:9px}
+  .photo-invoice-form label{min-width:0;overflow-wrap:anywhere}
+  .photo-invoice-form input,.photo-invoice-form select{min-width:0;font-size:13px;padding:9px 7px}
+  .photo-wide{grid-column:1/-1}
+  .photo-invoice-preview img{width:105px;height:105px}
+  .photo-source-actions{flex-wrap:wrap}
 }
 .tally-send-overlay:not([open]){display:none}.tally-send-overlay::backdrop{background:rgba(13,34,60,.28);backdrop-filter:blur(2px)}.tally-send-card{width:min(350px,86vw);padding:19px;text-align:center;border:1px solid rgba(255,255,255,.75);border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(8,28,52,.35)}
 .tally-send-ring{--progress:0deg;width:82px;height:82px;margin:0 auto 11px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#168d58 var(--progress),#dfe8f1 0);position:relative}
