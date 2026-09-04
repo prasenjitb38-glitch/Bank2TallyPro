@@ -698,6 +698,7 @@ function photoInvoiceCalculateTotal() { const taxable=Number($("#photoInvoiceTax
 function photoInvoiceDraftFromText(text) {
   const clean=String(text||"").replace(/\r/g,"");
   const inv=(clean.match(/(?:invoice|inv|bill)\s*(?:no|number|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i)||[])[1] || (clean.match(/\b(?:INV|BILL)[\s-]*([A-Z0-9][A-Z0-9\/-]{2,})\b/i)||[])[1];
+  const invoiceCandidate=inv && !/^(dated|date|number|no|e)$/i.test(inv) ? inv : (clean.match(/\b[A-Z]{2,}\/\d{2,}\/\d{2}-\d{2}\b/i)||[])[0];
   const gstin=(clean.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z]\w\b/i)||[])[0];
   const date=(clean.match(/\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/)||[])[1];
   const partyMatch=clean.match(/(?:buyer\s*\(\s*bill\s*to\s*\)|bill\s*to|billed\s*to|customer|party)\s*[:\-]?\s*(?:\n\s*)?([^\n]{3,60})/i);
@@ -707,14 +708,16 @@ function photoInvoiceDraftFromText(text) {
   const totalMatch=totalMatches[totalMatches.length-1];
   const amounts=[taxableMatch?.[1],totalMatch?.[1]].map(v=>Number(String(v||"").replace(/,/g,""))).filter(v=>v>0);
   const detectedRate=(clean.match(/(?:cgst|sgst|igst)[^\d]{0,15}(\d{1,2})\s*%/i)||[])[1];
-  if(inv) $("#photoInvoiceNo").value=inv;
+  if(invoiceCandidate) $("#photoInvoiceNo").value=invoiceCandidate;
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
-  if(party && !/^(no|number|date|gstin|invoice)$/i.test(party)) $("#photoInvoiceParty").value=party;
+  const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
+  if((party && !/^(no|number|date|gstin|invoice|dated)$/i.test(party)) || partyFallback) $("#photoInvoiceParty").value=(partyFallback||party).trim();
   if(date){const p=date.split(/[\/-]/).map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;}
   if(detectedRate){ const rate=Number(detectedRate); $("#photoInvoiceRate").value=String(taxTypeRate(rate)); }
   if(taxableMatch) $("#photoInvoiceTaxable").value=Number(taxableMatch[1].replace(/,/g,"")).toFixed(2);
   if(totalMatch) $("#photoInvoiceTotal").value=Number(totalMatch[1].replace(/,/g,"")).toFixed(2);
-  else if(amounts.length) $("#photoInvoiceTotal").value=amounts[amounts.length-1].toFixed(2);
+  else if(amounts.length) $("#photoInvoiceTotal").value=Math.max(...amounts).toFixed(2);
+  if(!taxableMatch){const numeric=[...clean.matchAll(/\b\d[\d,]+\.\d{2}\b/g)].map(m=>Number(m[0].replace(/,/g,""))).filter(v=>v>100); if(numeric.length>1) $("#photoInvoiceTaxable").value=Math.min(...numeric).toFixed(2);}
 }
 function taxTypeRate(componentRate){ const r=Number(componentRate||0); return r>0&&r<=14 ? r*2 : r; }
 $("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); if(!$("#photoInvoiceDate").value) $("#photoInvoiceDate").value=new Date().toISOString().slice(0,10); };
