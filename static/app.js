@@ -708,16 +708,19 @@ function photoInvoiceDraftFromText(text) {
   const totalMatch=totalMatches[totalMatches.length-1];
   const amounts=[taxableMatch?.[1],totalMatch?.[1]].map(v=>Number(String(v||"").replace(/,/g,""))).filter(v=>v>0);
   const detectedRate=(clean.match(/(?:cgst|sgst|igst)[^%]{0,50}(\d{1,2})\s*%/i)||[])[1];
+  const anyRate=(clean.match(/\b(5|12|18|28)\s*%/i)||[])[1];
   if(invoiceCandidate) $("#photoInvoiceNo").value=invoiceCandidate;
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
   const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
   if((party && !/^(no|number|date|gstin|invoice|dated)$/i.test(party)) || partyFallback) $("#photoInvoiceParty").value=(partyFallback||party).trim();
   if(date){const parts=date.split(/[\/-]/); if(parts.length===3 && /^\d+$/.test(parts[1])){const p=parts.map(Number); const d=p[2]<100?2000+p[2]:p[2]; $("#photoInvoiceDate").value=`${d}-${String(p[1]).padStart(2,"0")}-${String(p[0]).padStart(2,"0")}`;} else {const m={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12}[String(parts[1]).slice(0,3).toLowerCase()]; const d=Number(parts[2])<100?2000+Number(parts[2]):Number(parts[2]); if(m&&d) $("#photoInvoiceDate").value=`${d}-${String(m).padStart(2,"0")}-${String(Number(parts[0])).padStart(2,"0")}`;}}
-  if(detectedRate){ const rate=Number(detectedRate); $("#photoInvoiceRate").value=String(taxTypeRate(rate)); }
+  if(detectedRate || anyRate){ const rate=detectedRate ? taxTypeRate(Number(detectedRate)) : Number(anyRate); $("#photoInvoiceRate").value=String(rate); }
   if(taxableMatch) $("#photoInvoiceTaxable").value=Number(taxableMatch[1].replace(/,/g,"")).toFixed(2);
   if(totalMatch) $("#photoInvoiceTotal").value=Number(totalMatch[1].replace(/,/g,"")).toFixed(2);
   else if(amounts.length) $("#photoInvoiceTotal").value=Math.max(...amounts).toFixed(2);
   if(!taxableMatch){const numeric=[...clean.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)].map(m=>Number(m[0].replace(/,/g,""))).filter(v=>v>100&&v<500000); if(numeric.length>1){const sorted=[...new Set(numeric)].sort((a,b)=>a-b); $("#photoInvoiceTaxable").value=sorted[sorted.length-2].toFixed(2); if(!$("#photoInvoiceTotal").value) $("#photoInvoiceTotal").value=sorted[sorted.length-1].toFixed(2);}}
+  const taxableValue=Number($("#photoInvoiceTaxable").value||0), totalValue=Number($("#photoInvoiceTotal").value||0), selectedRate=Number($("#photoInvoiceRate").value||0);
+  if(taxableValue>0 && (totalValue<taxableValue || totalValue>taxableValue*1.5)) $("#photoInvoiceTotal").value=(taxableValue*(1+selectedRate/100)).toFixed(2);
 }
 function taxTypeRate(componentRate){ const r=Number(componentRate||0); return r>0&&r<=14 ? r*2 : r; }
 $("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); };
