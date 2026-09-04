@@ -11043,16 +11043,11 @@ def send_one_gst_sales_voucher_to_tally(row, ledger_config, return_period="", to
             "tally_sales_count": len(scoped),
         }
     raw = make_gst_sales_xml([item], ledger_config or {}, fresh_remote_id=True)
-    request = urllib.request.Request(
-        "http://127.0.0.1:9000",
-        data=raw,
-        headers={"Content-Type": "text/xml; charset=utf-8"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            tally_response = response.read().decode("utf-8", errors="replace")
-    except (urllib.error.URLError, TimeoutError) as exc:
+        # Use the configured local/remote Connector so a phone browser can
+        # submit an invoice to the computer where TallyPrime is running.
+        tally_response = tally_post(raw, timeout=120, purpose="sales-invoice-photo")
+    except Exception as exc:
         return {
             "invoice_no": invoice_no,
             "invoice_date": gst_text(item.get("invoice_date")),
