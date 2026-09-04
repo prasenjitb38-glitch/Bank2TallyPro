@@ -707,7 +707,7 @@ function photoInvoiceDraftFromText(text) {
   const totalMatches=[...clean.matchAll(/(?:grand\s*total|invoice\s*total|total\s*amount|amount\s*payable|net\s*amount|\btotal\b)\D{0,30}(?:₹|rs\.?|inr)?\s*(\d[\d,]*(?:\.\d{1,2})?)/gi)];
   const totalMatch=totalMatches[totalMatches.length-1];
   const amounts=[taxableMatch?.[1],totalMatch?.[1]].map(v=>Number(String(v||"").replace(/,/g,""))).filter(v=>v>0);
-  const detectedRate=(clean.match(/(?:cgst|sgst|igst)[^\d]{0,15}(\d{1,2})\s*%/i)||[])[1];
+  const detectedRate=(clean.match(/(?:cgst|sgst|igst)[^%]{0,50}(\d{1,2})\s*%/i)||[])[1];
   if(invoiceCandidate) $("#photoInvoiceNo").value=invoiceCandidate;
   if(gstin) $("#photoInvoiceGstin").value=gstin.toUpperCase();
   const partyFallback=(clean.match(/\b([A-Z][A-Z ]{3,}\s+(?:GALLERY|TRADERS|ENTERPRISES|ENTERPRISE|STORES|SERVICES))\b/i)||[])[1];
@@ -717,7 +717,7 @@ function photoInvoiceDraftFromText(text) {
   if(taxableMatch) $("#photoInvoiceTaxable").value=Number(taxableMatch[1].replace(/,/g,"")).toFixed(2);
   if(totalMatch) $("#photoInvoiceTotal").value=Number(totalMatch[1].replace(/,/g,"")).toFixed(2);
   else if(amounts.length) $("#photoInvoiceTotal").value=Math.max(...amounts).toFixed(2);
-  if(!taxableMatch){const numeric=[...clean.matchAll(/\b\d[\d,]+\.\d{2}\b/g)].map(m=>Number(m[0].replace(/,/g,""))).filter(v=>v>100); if(numeric.length>1) $("#photoInvoiceTaxable").value=Math.min(...numeric).toFixed(2);}
+  if(!taxableMatch){const numeric=[...clean.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)].map(m=>Number(m[0].replace(/,/g,""))).filter(v=>v>100&&v<500000); if(numeric.length>1){const sorted=[...new Set(numeric)].sort((a,b)=>a-b); $("#photoInvoiceTaxable").value=sorted[sorted.length-2].toFixed(2); if(!$("#photoInvoiceTotal").value) $("#photoInvoiceTotal").value=sorted[sorted.length-1].toFixed(2);}}
 }
 function taxTypeRate(componentRate){ const r=Number(componentRate||0); return r>0&&r<=14 ? r*2 : r; }
 $("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); };
