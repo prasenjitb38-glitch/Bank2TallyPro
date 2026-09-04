@@ -709,7 +709,7 @@ function photoInvoiceDraftFromText(text) {
 $("#openPhotoInvoiceModule").onclick = () => { $("#photoInvoiceDialog").showModal(); if(!$("#photoInvoiceDate").value) $("#photoInvoiceDate").value=new Date().toISOString().slice(0,10); };
 $("#photoInvoiceClearBtn").onclick = photoInvoiceReset;
 ["photoInvoiceTaxable","photoInvoiceRate"].forEach(id=>$("#"+id)?.addEventListener("input",photoInvoiceCalculateTotal));
-$("#photoInvoiceFile")?.addEventListener("change", async event => {
+async function handlePhotoInvoiceFile(event) {
   const file=event.target.files?.[0]; if(!file)return;
   const preview=$("#photoInvoicePreview"), image=$("#photoInvoiceImage"), status=$("#photoInvoiceOcrStatus"), out=$("#photoInvoiceOcrText");
   preview.classList.remove("hidden"); image.src=URL.createObjectURL(file); status.textContent="Reading photo…"; out.textContent="OCR is preparing the invoice draft.";
@@ -718,7 +718,9 @@ $("#photoInvoiceFile")?.addEventListener("change", async event => {
     const result=await window.Tesseract.recognize(file,"eng",{logger:msg=>{if(msg.status)status.textContent=`${msg.status} ${Math.round((msg.progress||0)*100)}%`;}});
     const text=String(result?.data?.text||"").trim(); photoInvoiceDraftFromText(text); status.textContent="Draft ready — review it"; out.textContent=text||"No text found. Enter the invoice values manually."; photoInvoiceSetMessage("OCR draft created. Check the invoice number, date, party, item and totals before sending.");
   } catch(err) { status.textContent="Manual entry"; out.textContent=err.message||"OCR unavailable"; photoInvoiceSetMessage("Photo loaded. Enter the invoice values manually, then send."); }
-});
+}
+$("#photoInvoiceFile")?.addEventListener("change", handlePhotoInvoiceFile);
+$("#photoInvoiceGallery")?.addEventListener("change", handlePhotoInvoiceFile);
 $("#photoInvoiceSendBtn")?.addEventListener("click", async event => {
   event.preventDefault();
   const invoiceNo=$("#photoInvoiceNo").value.trim(), party=$("#photoInvoiceParty").value.trim(), invoiceDate=$("#photoInvoiceDate").value, taxable=Number($("#photoInvoiceTaxable").value||0), total=Number($("#photoInvoiceTotal").value||0), rate=Number($("#photoInvoiceRate").value||0), qty=Number($("#photoInvoiceQty").value||1), taxType=$("#photoInvoiceTaxType").value;

@@ -59,7 +59,7 @@
     <form method="dialog">
       <div class="gst-heading"><div><h2>Photo Invoice Entry</h2><p>Take a clear invoice photo. OCR reads a first draft; review every field before sending to Tally.</p></div><button value="cancel" class="secondary">Back to Dashboard</button></div>
       <section class="photo-invoice-upload">
-        <label class="photo-drop"><span>📷</span><strong>Take photo / choose invoice</strong><small>On mobile, the camera opens automatically.</small><input id="photoInvoiceFile" type="file" accept="image/*" capture="environment"></label>
+        <div class="photo-drop"><span>📷</span><strong>Invoice photo</strong><small>Use camera or choose an existing gallery photo.</small><div class="photo-source-actions"><label class="primary photo-source-button">Take photo<input id="photoInvoiceFile" type="file" accept="image/*" capture="environment"></label><label class="secondary photo-source-button">Choose from Gallery<input id="photoInvoiceGallery" type="file" accept="image/*"></label></div></div>
         <div id="photoInvoicePreview" class="photo-invoice-preview hidden"><img id="photoInvoiceImage" alt="Invoice preview"><div><strong id="photoInvoiceOcrStatus">Ready</strong><p id="photoInvoiceOcrText">Choose a photo to read invoice details.</p></div></div>
       </section>
       <div class="photo-invoice-form">
