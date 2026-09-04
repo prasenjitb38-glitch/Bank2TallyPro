@@ -539,7 +539,7 @@ body:has(.account-modal[open]){overflow:hidden}
   .photo-invoice-modal{width:calc(100vw - 16px);max-width:none;margin:8px auto}
   .photo-invoice-modal form{padding:12px!important;overflow-y:auto;max-height:94vh}
   .photo-invoice-upload{grid-template-columns:1fr;gap:10px}
-  .photo-invoice-form{grid-template-columns:1fr 1fr;gap:9px}
+  .photo-invoice-form{grid-template-columns:1fr;gap:9px}
   .photo-invoice-form label{min-width:0;overflow-wrap:anywhere}
   .photo-invoice-form input,.photo-invoice-form select{min-width:0;font-size:13px;padding:9px 7px}
   .photo-wide{grid-column:1/-1}
