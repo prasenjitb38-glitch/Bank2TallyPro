@@ -1874,7 +1874,14 @@ def make_tally_delete_xml(records):
 
 
 def gst_text(value):
-    return "" if value is None else str(value).strip()
+    if value is None:
+        return ""
+    # Excel date cells are datetime objects.  Their Python display value has a
+    # trailing time (for example ``2026-08-04 00:00:00``), which Tally does not
+    # accept as an invoice date.  Preserve only the actual calendar date.
+    if hasattr(value, "strftime") and not isinstance(value, str):
+        return value.strftime("%Y-%m-%d").strip()
+    return str(value).strip()
 
 
 def gst_party_ledger(row):
@@ -2425,8 +2432,13 @@ def gst_rows_from_register_grid(grid, header_index, source, section, document_ty
         if not invoice_no:
             continue
         if gst_text(cell(inv_col)):
+            raw_invoice_date = cell(date_col)
+            if hasattr(raw_invoice_date, "strftime") and not isinstance(raw_invoice_date, str):
+                invoice_date = raw_invoice_date.strftime("%Y-%m-%d")
+            else:
+                invoice_date = gst_text(raw_invoice_date)
             carry = {
-                "invoice_no": invoice_no, "invoice_date": gst_text(cell(date_col)),
+                "invoice_no": invoice_no, "invoice_date": invoice_date,
                 "gstin": gst_text(cell(gstin_col)).upper(), "party_name": gst_text(cell(party_col)),
                 "invoice_value": gst_number(cell(value_col)),
                 "reference_invoice": gst_text(cell(ref_col)),
