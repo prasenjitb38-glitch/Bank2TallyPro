@@ -1877,6 +1877,50 @@ def gst_text(value):
     return "" if value is None else str(value).strip()
 
 
+def parse_gst_sales_invoice_date(value):
+    """Normalize GST Sales / GSTR-1 invoice dates to YYYY-MM-DD.
+
+    Accepts Excel datetime/date objects, ISO datetime text
+    (YYYY-MM-DD HH:MM:SS), and common Indian date strings.
+    """
+    if value is None or value == "":
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day") and not isinstance(value, str):
+        try:
+            return f"{int(value.year):04d}-{int(value.month):02d}-{int(value.day):02d}"
+        except (TypeError, ValueError, OverflowError):
+            pass
+    raw = gst_text(value).strip()
+    if not raw:
+        return ""
+    normalized = raw.replace("/", "-")
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d-%m-%y",
+        "%d-%b-%Y",
+        "%d-%b-%y",
+        "%d-%B-%Y",
+        "%d-%B-%y",
+    ):
+        try:
+            return datetime.strptime(normalized, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    date_only = normalized.split()[0] if " " in normalized else normalized
+    if date_only != normalized:
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y", "%d-%b-%Y", "%d-%b-%y"):
+            try:
+                return datetime.strptime(date_only, fmt).strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+    return ""
+
+
 def gst_party_ledger(row):
     party = gst_text(row.get("party_ledger") or row.get("party_name"))
     if not party or party.lower() in {
@@ -2426,11 +2470,12 @@ def gst_rows_from_register_grid(grid, header_index, source, section, document_ty
             continue
         if gst_text(cell(inv_col)):
             carry = {
-                "invoice_no": invoice_no, "invoice_date": gst_text(cell(date_col)),
+                "invoice_no": invoice_no,
+                "invoice_date": parse_gst_sales_invoice_date(cell(date_col)),
                 "gstin": gst_text(cell(gstin_col)).upper(), "party_name": gst_text(cell(party_col)),
                 "invoice_value": gst_number(cell(value_col)),
                 "reference_invoice": gst_text(cell(ref_col)),
-                "reference_date": gst_text(cell(ref_date_col)),
+                "reference_date": parse_gst_sales_invoice_date(cell(ref_date_col)),
             }
         row_document_type = (
             "Credit Note" if current_document_type == "Credit/Debit Note & Refund"
@@ -11138,17 +11183,10 @@ def make_gst_sales_xml(rows, ledger_config, fresh_remote_id=False):
             continue
         party = gst_party_ledger(row)
         invoice_no = gst_text(row.get("invoice_no"))
-        raw_date = gst_text(row.get("invoice_date")).replace("/", "-")
-        parsed_date = None
-        for fmt in ("%d-%m-%Y", "%Y-%m-%d", "%d-%m-%y", "%d/%m/%Y"):
-            try:
-                parsed_date = datetime.strptime(raw_date, fmt)
-                break
-            except ValueError:
-                pass
-        if not parsed_date:
+        parsed_iso = parse_gst_sales_invoice_date(row.get("invoice_date"))
+        if not parsed_iso:
             raise ValueError(f"Invalid invoice date for {invoice_no}.")
-        date = parsed_date.strftime("%Y%m%d")
+        date = parsed_iso.replace("-", "")
         allocations = row.get("sales_allocations") or []
         invoice_value = gst_number(row.get("invoice_value"))
         ledger_entries = [(party, -invoice_value, "Yes", "Yes")]
