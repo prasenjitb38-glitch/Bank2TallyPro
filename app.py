@@ -84,6 +84,7 @@ def credit_cost(filename, raw, transaction_count=0, password=""):
 
 APP_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 STATIC_DIR = APP_DIR / "static"
+
 if getattr(sys, "frozen", False):
     data_candidates = [
         Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Bank2Tally",
@@ -134,6 +135,20 @@ GST_STATE_CODES = {
     "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu", "34": "Puducherry",
     "35": "Andaman & Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
     "38": "Ladakh", "97": "Other Territory",
+}
+
+SADHAN_R_GST_STATE_CODES = {
+    "01": "Jammu & Kashmir", "02": "Himachal Pradesh", "03": "Punjab", "04": "Chandigarh",
+    "05": "Uttarakhand", "06": "Haryana", "07": "Delhi", "08": "Rajasthan",
+    "09": "Uttar Pradesh", "10": "Bihar", "11": "Sikkim", "12": "Arunachal Pradesh",
+    "13": "Nagaland", "14": "Manipur", "15": "Mizoram", "16": "Tripura",
+    "17": "Meghalaya", "18": "Assam", "19": "West Bengal", "20": "Jharkhand",
+    "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh", "24": "Gujarat",
+    "26": "Dadra and Nagar Haveli and Daman and Diu", "27": "Maharashtra",
+    "28": "Andhra Pradesh", "29": "Karnataka", "30": "Goa",
+    "31": "Lakshadweep", "32": "Kerala", "33": "Tamil Nadu", "34": "Puducherry",
+    "35": "Andaman and Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+    "38": "Ladakh", "97": "Other Territory", "99": "OIDAR",
 }
 
 
@@ -2521,6 +2536,253 @@ def gst_rows_from_register_grid(grid, header_index, source, section, document_ty
             })
     return [reconcile_gstr1_note_document_amounts({k: v for k, v in row.items() if not str(k).startswith("_")})
             for row in grouped.values()]
+
+
+PURCHASE_REGISTER_DATASET = "PURCHASE_REGISTER"
+
+
+def normalize_purchase_register_row(row, source=""):
+    """Books-side purchase row stored separately from portal returns."""
+    item = ensure_gst_invoice_fields(dict(row or {}))
+    doc = gst_text(item.get("document_type") or "Purchase")
+    lowered = doc.lower()
+    if "sales" in lowered:
+        doc = "Purchase"
+    elif lowered in {"invoice", "document", ""}:
+        doc = "Purchase"
+    item["document_type"] = doc
+    item["source"] = gst_text(item.get("source") or source)
+    item["dataset_key"] = PURCHASE_REGISTER_DATASET
+    item["party_name"] = gst_text(item.get("party_name") or item.get("party_ledger"))
+    invoice_date = gst_text(item.get("original_invoice_date") or item.get("invoice_date"))
+    item["original_invoice_date"] = invoice_date
+    item["invoice_date"] = gst_text(item.get("invoice_date") or invoice_date)
+    item["original_invoice_no"] = gst_text(item.get("original_invoice_no") or item.get("invoice_no"))
+    item.pop("available_in_gstr2a", None)
+    item.pop("available_in_gstr2b", None)
+    item.pop("gstr2a", None)
+    item.pop("gstr2b", None)
+    item.pop("ready_for_tally", None)
+    item.pop("ready_for_purchase_note", None)
+    return item
+
+
+def parse_purchase_register_file(name, raw):
+    """Parse Purchase Register Excel / CSV / JSON / ZIP into books rows only."""
+    suffix = Path(name).suffix.lower()
+    source_period = infer_gst_period(name)
+    if suffix == ".zip":
+        rows = []
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            for member in archive.infolist():
+                if member.is_dir():
+                    continue
+                child_suffix = Path(member.filename).suffix.lower()
+                if child_suffix in {".json", ".xlsx", ".xlsm", ".xls", ".csv"}:
+                    rows.extend(parse_purchase_register_file(member.filename, archive.read(member)))
+        return rows
+    if suffix == ".json":
+        rows = gst_rows_from_json(json.loads(raw.decode("utf-8-sig")), name)
+    elif suffix == ".csv":
+        rows = gstr1_rows_from_csv(raw, name)
+    elif suffix in {".xlsx", ".xlsm"}:
+        rows = gst_rows_from_excel(raw, name)
+    elif suffix == ".xls":
+        rows = gst_rows_from_excel(legacy_xls_to_xlsx(raw), name)
+    else:
+        raise ValueError("Purchase Register supports Excel, CSV, JSON or ZIP files.")
+    normalized = []
+    for row in rows:
+        item = normalize_purchase_register_row(row, name)
+        if source_period and not item.get("source_period"):
+            item["source_period"] = source_period
+        normalized.append(item)
+    return normalized
+
+
+def is_sadhan_r_return_type(value):
+    return bool(re.search(r"sadhan\s*r", gst_text(value), re.I))
+
+
+def is_sadhan_r_sales_row(row):
+    row = row or {}
+    if row.get("sadhan_r"):
+        return True
+    return is_sadhan_r_return_type(
+        row.get("source") or row.get("return_type") or row.get("sadhan_r_return_type") or ""
+    )
+
+
+def normalize_party_gstin(value):
+    return re.sub(r"\s+", "", gst_text(value).upper())
+
+
+def party_gstin_is_valid(gstin):
+    return bool(re.fullmatch(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]", gstin or ""))
+
+
+def sadhan_r_state_from_gstin(gstin):
+    gstin = normalize_party_gstin(gstin)
+    if not party_gstin_is_valid(gstin):
+        return ""
+    return SADHAN_R_GST_STATE_CODES.get(gstin[:2], "")
+
+
+def sadhan_r_company_state(explicit=""):
+    return (
+        gst_text(explicit)
+        or gst_text(TALLY_CACHE.get("company_state"))
+        or "Assam"
+    )
+
+
+def sadhan_r_party_gst_profile(row, company_state=""):
+    gstin = normalize_party_gstin((row or {}).get("gstin"))
+    valid = party_gstin_is_valid(gstin)
+    if valid:
+        state = sadhan_r_state_from_gstin(gstin)
+        return {
+            "gstin": gstin,
+            "gst_country": "India",
+            "gst_state": state,
+            "gst_registration_type": "Regular",
+            "place_of_supply": state,
+        }
+    # Same as MARG unregistered sales: company State / India, never invent a GSTIN.
+    state = sadhan_r_company_state(company_state)
+    return {
+        "gstin": "",
+        "gst_country": "India",
+        "gst_state": state,
+        "gst_registration_type": "Unregistered/Consumer",
+        "place_of_supply": state,
+    }
+
+
+def enrich_sadhan_r_sales_row(row):
+    item = dict(row or {})
+    item["sadhan_r"] = True
+    item["source"] = "Sales Register – Sadhan R"
+    item.update(sadhan_r_party_gst_profile(item))
+    return item
+
+
+def sadhan_r_sales_party_xml(row, company_state=""):
+    profile = sadhan_r_party_gst_profile(row, company_state)
+    gstin = profile["gstin"]
+    state = profile["place_of_supply"]
+    country = profile["gst_country"] or "India"
+    party = gst_party_ledger(row)
+    parts = [
+        f"<BASICBUYERNAME>{xml_escape(party)}</BASICBUYERNAME>",
+        f"<CONSIGNEEMAILINGNAME>{xml_escape(party)}</CONSIGNEEMAILINGNAME>",
+        f"<CONSIGNEECOUNTRYNAME>{xml_escape(country)}</CONSIGNEECOUNTRYNAME>",
+        f"<COUNTRYOFRESIDENCE>{xml_escape(country)}</COUNTRYOFRESIDENCE>",
+        f"<COUNTRYNAME>{xml_escape(country)}</COUNTRYNAME>",
+    ]
+    if gstin:
+        parts.extend([
+            f"<PARTYGSTIN>{xml_escape(gstin)}</PARTYGSTIN>",
+            f"<CONSIGNEEGSTIN>{xml_escape(gstin)}</CONSIGNEEGSTIN>",
+        ])
+    if state:
+        parts.extend([
+            f"<STATENAME>{xml_escape(state)}</STATENAME>",
+            f"<CONSIGNEESTATENAME>{xml_escape(state)}</CONSIGNEESTATENAME>",
+            f"<PLACEOFSUPPLY>{xml_escape(state)}</PLACEOFSUPPLY>",
+            f"<CONSIGNEEPLACEOFSUPPLY>{xml_escape(state)}</CONSIGNEEPLACEOFSUPPLY>",
+        ])
+    parts.append(
+        f"<GSTREGISTRATIONTYPE>{xml_escape(profile['gst_registration_type'])}</GSTREGISTRATIONTYPE>"
+    )
+    return "".join(parts)
+
+
+def sadhan_r_party_alter_payload(existing, party_parent, profile):
+    return {
+        "name": existing.get("name"),
+        "parent": existing.get("parent") or party_parent,
+        "gstin": profile["gstin"],
+        "state": profile["gst_state"],
+        "country": profile["gst_country"] or "India",
+        "registration_type": profile["gst_registration_type"],
+        "sadhan_r": True,
+    }
+
+
+def sadhan_r_ledger_needs_gst_sync(existing, profile):
+    existing_gstin = normalize_party_gstin(existing.get("gstin"))
+    existing_state = gst_text(existing.get("state")).strip().lower()
+    existing_country = gst_text(
+        existing.get("country") or existing.get("country_of_residence")
+    ).strip().lower()
+    existing_reg = gst_text(
+        existing.get("registration_type") or existing.get("gst_registration_type")
+    ).strip().lower()
+    wanted_gstin = profile.get("gstin") or ""
+    wanted_state = gst_text(profile.get("gst_state")).strip().lower()
+    if wanted_gstin:
+        if existing_gstin != wanted_gstin:
+            return True
+        if existing_state in {"", "not applicable"} or (wanted_state and existing_state != wanted_state):
+            return True
+        if existing_country in {"", "not applicable"} or existing_country != "india":
+            return True
+        if "unregistered" in existing_reg or existing_reg in {"", "not applicable", "consumer"}:
+            return True
+        return False
+    # MARG unregistered path: fill company State/Country when Tally still shows blank / Not Applicable.
+    if existing_state in {"", "not applicable"}:
+        return True
+    if existing_country in {"", "not applicable"}:
+        return True
+    return False
+
+
+
+def alias_hsn_wise_rate_header_for_marg_parser(raw):
+    """Map Sadhan R 'Rate' header to MARG's 'GST %' so gst_rows_from_excel can run.
+
+    Does not replace the MARG parser. Only renames the rate column when the rest
+    of the HSN-wise header is already present.
+    """
+    wb = load_workbook(io.BytesIO(raw))
+    changed = False
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(min_row=1, max_row=20):
+            labels = {}
+            for cell in row:
+                text = gst_text(cell.value).strip().lower()
+                if text:
+                    labels[text] = cell
+            keys = set(labels)
+            if not {"date", "vno", "account", "hsn/sac", "taxable value"} <= keys:
+                continue
+            if "gst %" not in keys and "rate" in keys:
+                labels["rate"].value = "GST %"
+                changed = True
+            if "gst registrationtype" not in keys and "gst type" in keys:
+                labels["gst type"].value = "GST RegistrationType"
+                changed = True
+            break
+    if not changed:
+        return raw
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()
+
+
+def prepare_sadhan_r_file_for_marg_parser(name, raw):
+    suffix = Path(name).suffix.lower()
+    prepared_name = name
+    prepared_raw = raw
+    if suffix == ".xls":
+        prepared_raw = legacy_xls_to_xlsx(raw)
+        prepared_name = str(Path(name).with_suffix(".xlsx"))
+        suffix = ".xlsx"
+    if suffix in {".xlsx", ".xlsm"}:
+        prepared_raw = alias_hsn_wise_rate_header_for_marg_parser(prepared_raw)
+    return prepared_name, prepared_raw
 
 
 def parse_gst_file(name, raw):
@@ -11241,11 +11503,16 @@ def make_gst_sales_xml(rows, ledger_config, fresh_remote_id=False):
             else str(uuid.uuid5(uuid.NAMESPACE_URL, remote_seed))
         )
         narration = "Being goods sold for cash." if party.lower() == "cash" else "Being goods sold on credit."
+        sadhan_party_xml = (
+            sadhan_r_sales_party_xml(row, gst_text(TALLY_CACHE.get("company_state")) or "Assam")
+            if is_sadhan_r_sales_row(row) else ""
+        )
         messages.append(
             f'<TALLYMESSAGE xmlns:UDF="TallyUDF"><VOUCHER REMOTEID="{remote_id}" VCHTYPE="Sales" '
             f'ACTION="Create" OBJVIEW="Invoice Voucher View">'
             f'<DATE>{date}</DATE><VOUCHERTYPENAME>Sales</VOUCHERTYPENAME><VOUCHERNUMBER>{xml_escape(invoice_no)}</VOUCHERNUMBER>'
             f'<REFERENCE>{xml_escape(invoice_no)}</REFERENCE><PARTYLEDGERNAME>{xml_escape(party)}</PARTYLEDGERNAME>'
+            f'{sadhan_party_xml}'
             f'<PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW><ISINVOICE>Yes</ISINVOICE>'
             f'<OBJVIEW>Invoice Voucher View</OBJVIEW>'
             f'<NARRATION>{xml_escape(narration)}</NARRATION>{ledger_xml}{"".join(inventory_xml)}'
@@ -11680,6 +11947,38 @@ def ensure_gst_party_ledgers(rows, ledger_config=None):
                     "parent": "Cash-in-Hand",
                 }
             continue
+        if is_sadhan_r_sales_row(row):
+            profile = sadhan_r_party_gst_profile(row, company_state)
+            gstin = profile["gstin"]
+            existing = existing_by_name.get(party_key)
+            if not existing and gstin:
+                existing = existing_by_gstin.get(gstin)
+            if existing:
+                resolved_name = existing.get("name") or party
+                mappings[party_key] = resolved_name
+                if raw_party_key:
+                    mappings[raw_party_key] = resolved_name
+                if sadhan_r_ledger_needs_gst_sync(existing, profile):
+                    party_alters[gst_text(resolved_name).lower()] = sadhan_r_party_alter_payload(
+                        existing, party_parent, profile
+                    )
+            elif party_key not in parties:
+                parties[party_key] = {
+                    "name": party,
+                    "gstin": gstin,
+                    "state": profile["gst_state"] or (company_state if not gstin else ""),
+                    "country": "India" if gstin else company_country,
+                    "registration_type": profile["gst_registration_type"],
+                    "parent": party_parent,
+                    "sadhan_r": True,
+                }
+                mappings[party_key] = party
+                if raw_party_key:
+                    mappings[raw_party_key] = party
+                existing_by_name[party_key] = parties[party_key]
+                if gstin:
+                    existing_by_gstin[gstin] = parties[party_key]
+            continue
         if gstin and gstin in existing_by_gstin:
             mappings[party_key] = existing_by_gstin[gstin]["name"]
             continue
@@ -11854,6 +12153,7 @@ def ensure_gst_party_ledgers(rows, ledger_config=None):
         state = party["state"]
         country = party["country"]
         registration_type = party["registration_type"]
+        gst_applicable = "<GSTAPPLICABLE>Applicable</GSTAPPLICABLE>" if party.get("sadhan_r") else ""
         gst_details = (
             f'<LEDGSTREGDETAILS.LIST><APPLICABLEFROM>20250401</APPLICABLEFROM>'
             f'<STATE>{xml_escape(state)}</STATE><PLACEOFSUPPLY>{xml_escape(state)}</PLACEOFSUPPLY>'
@@ -11871,6 +12171,7 @@ def ensure_gst_party_ledgers(rows, ledger_config=None):
             f'<ISBILLWISEON>Yes</ISBILLWISEON><AFFECTSSTOCK>No</AFFECTSSTOCK>'
             f'<COUNTRYNAME>{xml_escape(country)}</COUNTRYNAME>'
             f'<COUNTRYOFRESIDENCE>{xml_escape(country)}</COUNTRYOFRESIDENCE>'
+            f'{gst_applicable}'
             f'<LEDSTATENAME>{xml_escape(state)}</LEDSTATENAME>'
             f'<GSTREGISTRATIONTYPE>{xml_escape(registration_type)}</GSTREGISTRATIONTYPE>'
             f'{"<PARTYGSTIN>" + xml_escape(gstin) + "</PARTYGSTIN>" if gstin else ""}'
@@ -11881,13 +12182,19 @@ def ensure_gst_party_ledgers(rows, ledger_config=None):
         state = party["state"]
         country = party["country"]
         registration_type = party["registration_type"]
+        gstin = gst_text(party.get("gstin"))
+        gst_applicable = "<GSTAPPLICABLE>Applicable</GSTAPPLICABLE>" if party.get("sadhan_r") else ""
         messages.append(
             f'<TALLYMESSAGE xmlns:UDF="TallyUDF"><LEDGER NAME="{xml_escape(party["name"])}" ACTION="Alter">'
             f'<NAME>{xml_escape(party["name"])}</NAME><PARENT>{xml_escape(party["parent"])}</PARENT>'
             f'<COUNTRYNAME>{xml_escape(country)}</COUNTRYNAME><COUNTRYOFRESIDENCE>{xml_escape(country)}</COUNTRYOFRESIDENCE>'
+            f'{gst_applicable}'
             f'<LEDSTATENAME>{xml_escape(state)}</LEDSTATENAME><GSTREGISTRATIONTYPE>{xml_escape(registration_type)}</GSTREGISTRATIONTYPE>'
+            f'{"<PARTYGSTIN>" + xml_escape(gstin) + "</PARTYGSTIN>" if gstin else ""}'
             f'<LEDGSTREGDETAILS.LIST><APPLICABLEFROM>20250401</APPLICABLEFROM><STATE>{xml_escape(state)}</STATE>'
-            f'<PLACEOFSUPPLY>{xml_escape(state)}</PLACEOFSUPPLY><GSTREGISTRATIONTYPE>{xml_escape(registration_type)}</GSTREGISTRATIONTYPE></LEDGSTREGDETAILS.LIST>'
+            f'<PLACEOFSUPPLY>{xml_escape(state)}</PLACEOFSUPPLY><GSTREGISTRATIONTYPE>{xml_escape(registration_type)}</GSTREGISTRATIONTYPE>'
+            f'{"<GSTIN>" + xml_escape(gstin) + "</GSTIN>" if gstin else ""}'
+            f'</LEDGSTREGDETAILS.LIST>'
             f'<LEDMAILINGDETAILS.LIST><APPLICABLEFROM>20250401</APPLICABLEFROM><MAILINGNAME>{xml_escape(party["name"])}</MAILINGNAME>'
             f'<STATE>{xml_escape(state)}</STATE><COUNTRY>{xml_escape(country)}</COUNTRY></LEDMAILINGDETAILS.LIST>'
             f'</LEDGER></TALLYMESSAGE>'
@@ -12221,6 +12528,47 @@ class Handler(SimpleHTTPRequestHandler):
                                      "altered": company_count("ALTERED"),
                                      "ignored": company_count("IGNORED")})
                 return
+            if self.path == "/api/gst/purchase-register/import":
+                import base64
+                all_rows = []
+                for item in payload.get("files", []):
+                    item_name = item.get("name", "Purchase Register")
+                    item_raw = base64.b64decode(item.get("data", ""))
+                    if Path(item_name).suffix.lower() == ".mbk":
+                        raise ValueError(
+                            "Purchase Register needs an Excel, CSV or JSON file."
+                        )
+                    all_rows.extend(parse_purchase_register_file(item_name, item_raw))
+                if not all_rows:
+                    raise ValueError(
+                        "No purchase invoice rows were found. Use a Purchase Register Excel file."
+                    )
+                gst_recon_save_rows(PURCHASE_REGISTER_DATASET, all_rows)
+                self.send_json(200, {
+                    "return_type": "Purchase Register",
+                    "rows": all_rows,
+                    "summary": gst_summary(all_rows),
+                    "count": len(all_rows),
+                })
+                return
+            if self.path == "/api/gst/purchase-register/load":
+                rows = gst_recon_load_rows(PURCHASE_REGISTER_DATASET)
+                self.send_json(200, {
+                    "return_type": "Purchase Register",
+                    "rows": rows,
+                    "summary": gst_summary(rows) if rows else {},
+                    "count": len(rows),
+                })
+                return
+            if self.path == "/api/gst/purchase-register/save":
+                rows = [normalize_purchase_register_row(row) for row in (payload.get("rows") or [])]
+                gst_recon_save_rows(PURCHASE_REGISTER_DATASET, rows)
+                self.send_json(200, {"ok": True, "count": len(rows)})
+                return
+            if self.path == "/api/gst/purchase-register/clear":
+                gst_recon_save_rows(PURCHASE_REGISTER_DATASET, [])
+                self.send_json(200, {"ok": True, "count": 0})
+                return
             if self.path == "/api/gst/import":
                 import base64
                 all_rows = []
@@ -12230,6 +12578,8 @@ class Handler(SimpleHTTPRequestHandler):
                 for item in payload.get("files", []):
                     item_name = item.get("name", "GST file")
                     item_raw = base64.b64decode(item.get("data", ""))
+                    if is_sadhan_r_return_type(return_type) and Path(item_name).suffix.lower() != ".mbk":
+                        item_name, item_raw = prepare_sadhan_r_file_for_marg_parser(item_name, item_raw)
                     if Path(item_name).suffix.lower() == ".mbk":
                         password = gst_text(payload.get("backupPassword"))
                         try:
@@ -12272,6 +12622,8 @@ class Handler(SimpleHTTPRequestHandler):
                             )
                         else:
                             all_rows.append(row)
+                if is_sadhan_r_return_type(return_type):
+                    all_rows = [enrich_sadhan_r_sales_row(row) for row in all_rows]
                 if not all_rows:
                     raise ValueError("No sales invoice rows were found. For MARG Backup / Sales Register, use an invoice-level or HSN-wise sales register Excel file.")
                 if filing_gstin or any(row.get("taxpayer_gstin") for row in all_rows):

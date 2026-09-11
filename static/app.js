@@ -63,6 +63,9 @@ let purchase2aFilters = {
 let gstReconDatasetCounts = {};
 let gstReconDatasetsLoaded = new Set();
 let gstReconSessionLoadSeq = 0;
+let purchaseRegisterRows = [];
+let purchaseRegisterFilters = { q: "", rate: "" };
+let purchaseRegisterLoaded = false;
 
 if (forceFreshStatement) {
   window.addEventListener("pageshow", () => {
@@ -581,12 +584,17 @@ $("#tallyDisconnectBtn").onclick = () => {
   $("#tallySyncBtn").textContent = "Connect";
   $("#tallyDisconnectBtn").classList.add("hidden");
 };
+function isSadhanRReturnType(value) {
+  return /sadhan\s*r/i.test(String(value || ""));
+}
+
 function updateMargImportOptions() {
   const returnType = $("#gstReturnType").value;
-  const isMarg = returnType.toUpperCase().startsWith("MARG");
+  const isMarg = returnType.toUpperCase().startsWith("MARG") || (activeGstModule === "sales" && isSadhanRReturnType(returnType));
   const isGstr3b = returnType === "GSTR-3B";
   if (activeGstModule === "reconciliation") $("#gstFileLabel").textContent = isGstr3b ? "GSTR-3B PDF / File" : "GST Reconciliation File";
   $("#gstFileInput").accept = isGstr3b ? ".pdf,.json,.zip,.xlsx,.xlsm" : ".json,.xlsx,.xlsm,.xls,.csv,.zip,.mbk,.pdf";
+  if (activeGstModule === "sales" && $("#gstImportBtn")) $("#gstImportBtn").textContent = "Import GST File";
   $("#margImportOptions").classList.toggle("hidden", !isMarg);
   $("#margMonthField").classList.toggle("hidden", $("#margPeriodType").value !== "monthly");
   if (!isMarg) {
@@ -655,7 +663,7 @@ function openGstWorkspace(mode) {
     $("#gstModuleTitle").textContent = "GST Sales / GSTR-1";
     $("#gstModuleSubtitle").textContent = "Import GSTR-1 JSON, Excel or MARG sales data and prepare reviewed Tally sales entries.";
     $("#gstFileLabel").textContent = "GST Sales File";
-    $("#gstReturnType").innerHTML = `<option>GSTR-1 / Sales Register</option><option>GSTR-1 JSON (GST Portal)</option><option>MARG Backup / Sales Register</option>`;
+    $("#gstReturnType").innerHTML = `<option>GSTR-1 / Sales Register</option><option>GSTR-1 JSON (GST Portal)</option><option>MARG Backup / Sales Register</option><option>Sales Register – Sadhan R</option>`;
   } else if (mode === "payment") {
     $("#gstModuleTitle").textContent = "GST Payment & ITC";
     $("#gstModuleSubtitle").textContent = "Import GST payment and ledger reports for review. Sales/GSTR-1 data is kept separate.";
@@ -3022,10 +3030,13 @@ function placeGstr2bSummaryForMatch() {
 
 function setPurchaseSheetView(view = "match") {
   const show2a = view === "2a", show2b = view === "2b", showMatch = view === "match";
+  const showRegister = view === "register";
   const placeholder = $("#purchase2aWorkspace")?.parentElement;
   if (placeholder) placeholder.classList.toggle("hidden", !show2a);
   if ($("#purchase2aWorkspace")) $("#purchase2aWorkspace").classList.toggle("hidden", !show2a);
   if ($("#purchase2bWorkspace")) $("#purchase2bWorkspace").classList.toggle("hidden", !show2b);
+  if ($("#purchaseRegisterWorkspace")) $("#purchaseRegisterWorkspace").classList.toggle("hidden", !showRegister);
+  document.querySelector("#gstPurchaseReconcilePanel > .purchase-load-status")?.classList.toggle("hidden", showRegister);
   if (showMatch) placeGstr2bSummaryForMatch();
   const has2b = Boolean((gstDatasets["GSTR-2B"] || []).length);
   if ($("#gstr2SummaryPanel")) $("#gstr2SummaryPanel").classList.toggle("hidden", !(has2b && (show2b || showMatch)));
@@ -3033,13 +3044,13 @@ function setPurchaseSheetView(view = "match") {
     const element = $(`#${id}`);
     if (element) element.classList.toggle("hidden", !showMatch || !gstRows.length);
   });
-  [["purchaseView2aBtn",show2a],["purchaseView2bBtn",show2b],["purchaseViewMatchBtn",showMatch]].forEach(([id,on]) => {
+  [["purchaseView2aBtn",show2a],["purchaseView2bBtn",show2b],["purchaseViewMatchBtn",showMatch],["purchaseViewRegisterBtn",showRegister]].forEach(([id,on]) => {
     $(`#${id}`)?.classList.toggle("active", on);
   });
-  if ($("#gstr2aLoadStatus")) $("#gstr2aLoadStatus").classList.toggle("hidden", show2b);
-  if ($("#gstr2bLoadStatus")) $("#gstr2bLoadStatus").classList.toggle("hidden", show2a);
-  if ($("#gstClear2aBtn")) $("#gstClear2aBtn").classList.toggle("hidden", show2b);
-  if ($("#gstClear2bBtn")) $("#gstClear2bBtn").classList.toggle("hidden", show2a);
+  if ($("#gstr2aLoadStatus")) $("#gstr2aLoadStatus").classList.toggle("hidden", show2b || showRegister);
+  if ($("#gstr2bLoadStatus")) $("#gstr2bLoadStatus").classList.toggle("hidden", show2a || showRegister);
+  if ($("#gstClear2aBtn")) $("#gstClear2aBtn").classList.toggle("hidden", show2b || showRegister);
+  if ($("#gstClear2bBtn")) $("#gstClear2bBtn").classList.toggle("hidden", show2a || showRegister);
   if ($("#gstClear2aBtn")) $("#gstClear2aBtn").disabled = false;
   if ($("#gstClear2bBtn")) $("#gstClear2bBtn").disabled = false;
   if ($("#gstReconcileBtn")) $("#gstReconcileBtn").classList.toggle("hidden", !showMatch);
@@ -3048,11 +3059,16 @@ function setPurchaseSheetView(view = "match") {
   if (show2a) renderPurchase2aWorkspace();
   if (show2b) renderPurchase2bWorkspace();
   if (showMatch && has2b) renderGstr2Summary([], [], [], []);
+  if (showRegister) {
+    ensurePurchaseRegisterLoaded();
+    renderPurchaseRegisterWorkspace();
+  }
 }
 
 if ($("#purchaseView2aBtn")) $("#purchaseView2aBtn").onclick = () => setPurchaseSheetView("2a");
 if ($("#purchaseView2bBtn")) $("#purchaseView2bBtn").onclick = () => setPurchaseSheetView("2b");
 if ($("#purchaseViewMatchBtn")) $("#purchaseViewMatchBtn").onclick = () => setPurchaseSheetView("match");
+if ($("#purchaseViewRegisterBtn")) $("#purchaseViewRegisterBtn").onclick = () => setPurchaseSheetView("register");
 function renderGstr2Summary(matched,only2a,only2b,notes) {
   const money=v=>Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const sourceAll=gstDatasets["GSTR-2B"]||[];
@@ -7690,3 +7706,180 @@ $("#bulkGstRate").onchange=()=>{$("#bulkLedgerName").value=`Sales ${$("#bulkGstR
 $("#bulkGenerateBtn").onclick=generateBulkPreview;
 $("#bulkSelectAllBtn").onclick=()=>{const all=bulkVoucherRows.every(row=>row.selected);bulkVoucherRows.forEach(row=>row.selected=!all);renderBulkPreview();};
 $("#bulkSendBtn").onclick=sendBulkVouchers;
+
+/* Independent Purchase Register: import, store, display, search/filter, summary, export. */
+function purchaseRegisterIsNote(row) {
+  return /credit\s*note|debit\s*note|amendment|return/i.test(String(row?.document_type || ""));
+}
+function purchaseRegisterRate(row) {
+  const taxable = Number(row?.taxable_value || 0);
+  if (!taxable) return 0;
+  const calculated = 100 * (Number(row.igst || 0) + Number(row.cgst || 0) + Number(row.sgst || 0) + Number(row.cess || 0)) / taxable;
+  return [0, 5, 12, 18, 28].reduce((best, rate) => Math.abs(rate - calculated) < Math.abs(best - calculated) ? rate : best, 0);
+}
+function purchaseRegisterChip() {
+  const chip = $("#purchaseRegisterStatus");
+  if (!chip) return;
+  const count = purchaseRegisterRows.length;
+  chip.textContent = count
+    ? `Purchase Register: Imported (${count.toLocaleString("en-IN")})`
+    : "Purchase Register: Not Imported";
+  chip.classList.toggle("warn", !count);
+}
+async function ensurePurchaseRegisterLoaded() {
+  if (purchaseRegisterLoaded) return;
+  purchaseRegisterLoaded = true;
+  try {
+    const response = await fetch("/api/gst/purchase-register/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const result = await response.json();
+    if (response.ok && Array.isArray(result.rows) && result.rows.length) {
+      purchaseRegisterRows = result.rows;
+    }
+  } catch (_) {}
+  renderPurchaseRegisterWorkspace();
+}
+function purchaseRegisterVisibleRows(notes = false) {
+  const needle = String(purchaseRegisterFilters.q || "").trim().toLowerCase();
+  const rateFilter = String(purchaseRegisterFilters.rate || "");
+  return purchaseRegisterRows.filter((row) => {
+    if (Boolean(purchaseRegisterIsNote(row)) !== notes) return false;
+    if (rateFilter && String(purchaseRegisterRate(row)) !== rateFilter) return false;
+    if (!needle) return true;
+    const blob = [
+      row.gstin, row.party_name, row.invoice_no, row.invoice_date,
+      row.hsn_code, row.item_name, row.document_type,
+    ].join(" ").toLowerCase();
+    return blob.includes(needle);
+  });
+}
+function renderPurchaseRegisterTable(entries) {
+  const money = (v) => Number(v || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!entries.length) return `<p class="gst-next-note">No rows in this section.</p>`;
+  return `<table><thead><tr><th>GSTIN</th><th>Party</th><th>Invoice No.</th><th>Invoice Date</th><th>Type</th><th>Invoice Value</th><th>Taxable</th><th>GST Rate</th><th>IGST</th><th>CGST</th><th>SGST</th></tr></thead><tbody>${entries.map((row) => `<tr>
+      <td>${escapeHtml(row.gstin || "")}</td>
+      <td>${escapeHtml(row.party_name || "")}</td>
+      <td>${escapeHtml(row.invoice_no || "")}</td>
+      <td>${escapeHtml(row.original_invoice_date || row.invoice_date || "")}</td>
+      <td>${escapeHtml(row.document_type || "Purchase")}</td>
+      <td class="money">${money(row.invoice_value)}</td>
+      <td class="money">${money(row.taxable_value)}</td>
+      <td>${purchaseRegisterRate(row)}%</td>
+      <td class="money">${money(row.igst)}</td>
+      <td class="money">${money(row.cgst)}</td>
+      <td class="money">${money(row.sgst)}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+function renderPurchaseRegisterWorkspace() {
+  const workspace = $("#purchaseRegisterWorkspace");
+  if (!workspace) return;
+  const invoices = purchaseRegisterRows.filter((row) => !purchaseRegisterIsNote(row));
+  const notes = purchaseRegisterRows.filter(purchaseRegisterIsNote);
+  const hasRows = purchaseRegisterRows.length > 0;
+  $("#purchaseRegisterEmpty")?.classList.toggle("hidden", hasRows);
+  const money = (v) => Number(v || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const bucket = (rows) => rows.reduce((acc, row) => {
+    acc.count += 1;
+    acc.taxable_value += Number(row.taxable_value || 0);
+    acc.igst += Number(row.igst || 0);
+    acc.cgst += Number(row.cgst || 0);
+    acc.sgst += Number(row.sgst || 0);
+    acc.cess += Number(row.cess || 0);
+    acc.invoice_value += Number(row.invoice_value || 0);
+    return acc;
+  }, { count: 0, taxable_value: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, invoice_value: 0 });
+  const line = (label, t, cls = "") => `<tr class="${cls}"><th>${label}</th><td>${t.count.toLocaleString("en-IN")}</td><td>${money(t.taxable_value)}</td><td>${money(t.igst)}</td><td>${money(t.cgst)}</td><td>${money(t.sgst)}</td><td>${money(t.cess)}</td><td>${money(t.invoice_value)}</td></tr>`;
+  if ($("#purchaseRegisterCount")) $("#purchaseRegisterCount").textContent = purchaseRegisterRows.length.toLocaleString("en-IN");
+  if ($("#purchaseRegisterSummaryRows")) {
+    $("#purchaseRegisterSummaryRows").innerHTML = [
+      line("Purchase Invoices", bucket(invoices)),
+      line("Credit / Debit Notes", bucket(notes)),
+      line("Register Total", bucket(purchaseRegisterRows), "purchase-register-total"),
+    ].join("");
+  }
+  const visibleInvoices = purchaseRegisterVisibleRows(false);
+  const visibleNotes = purchaseRegisterVisibleRows(true);
+  const filteredTotals = bucket([...visibleInvoices, ...visibleNotes]);
+  if ($("#purchaseRegisterTaxable")) $("#purchaseRegisterTaxable").textContent = money(filteredTotals.taxable_value);
+  if ($("#purchaseRegisterIgst")) $("#purchaseRegisterIgst").textContent = money(filteredTotals.igst);
+  if ($("#purchaseRegisterCgst")) $("#purchaseRegisterCgst").textContent = money(filteredTotals.cgst);
+  if ($("#purchaseRegisterSgst")) $("#purchaseRegisterSgst").textContent = money(filteredTotals.sgst);
+  if ($("#purchaseRegisterInvoiceRows")) $("#purchaseRegisterInvoiceRows").innerHTML = renderPurchaseRegisterTable(visibleInvoices);
+  if ($("#purchaseRegisterNoteCount")) $("#purchaseRegisterNoteCount").textContent = notes.length.toLocaleString("en-IN");
+  if ($("#purchaseRegisterNotesPanel")) $("#purchaseRegisterNotesPanel").classList.toggle("hidden", !notes.length);
+  if ($("#purchaseRegisterNoteRows")) $("#purchaseRegisterNoteRows").innerHTML = renderPurchaseRegisterTable(visibleNotes);
+  purchaseRegisterChip();
+}
+async function importPurchaseRegisterFiles() {
+  const input = $("#purchaseRegisterFileInput");
+  const button = $("#purchaseRegisterImportBtn");
+  const files = [...(input?.files || [])];
+  if (!files.length) return alert("Select a Purchase Register Excel file.");
+  button.disabled = true;
+  button.textContent = "Importing...";
+  try {
+    const packed = [];
+    for (const file of files) packed.push({ name: file.name, data: await fileToBase64(file) });
+    const response = await fetch("/api/gst/purchase-register/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: packed }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Purchase Register import failed.");
+    purchaseRegisterRows = result.rows || [];
+    purchaseRegisterLoaded = true;
+    if (input) input.value = "";
+    renderPurchaseRegisterWorkspace();
+    alert(`Purchase Register imported (${purchaseRegisterRows.length.toLocaleString("en-IN")} document(s)).`);
+  } catch (failure) {
+    alert(failure.message || "Purchase Register import failed.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Import Purchase Register";
+  }
+}
+async function clearPurchaseRegister() {
+  if (!confirm("Clear the Purchase Register?")) return;
+  try {
+    await fetch("/api/gst/purchase-register/clear", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  } catch (_) {}
+  purchaseRegisterRows = [];
+  purchaseRegisterLoaded = true;
+  renderPurchaseRegisterWorkspace();
+}
+async function exportPurchaseRegister() {
+  if (!purchaseRegisterRows.length) return alert("Import a Purchase Register first.");
+  const response = await fetch("/api/gst/preview-xlsx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Purchase Register", rows: purchaseRegisterRows }),
+  });
+  if (!response.ok) return alert("Excel export failed.");
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "Purchase_Register.xlsx";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+if ($("#purchaseRegisterImportBtn")) $("#purchaseRegisterImportBtn").onclick = importPurchaseRegisterFiles;
+if ($("#purchaseRegisterClearBtn")) $("#purchaseRegisterClearBtn").onclick = clearPurchaseRegister;
+if ($("#purchaseRegisterExportBtn")) $("#purchaseRegisterExportBtn").onclick = exportPurchaseRegister;
+if ($("#purchaseRegisterSearch")) $("#purchaseRegisterSearch").oninput = debounce(() => {
+  purchaseRegisterFilters.q = ($("#purchaseRegisterSearch").value || "").trim().toLowerCase();
+  renderPurchaseRegisterWorkspace();
+}, 250);
+if ($("#purchaseRegisterRateFilter")) $("#purchaseRegisterRateFilter").onchange = () => {
+  purchaseRegisterFilters.rate = $("#purchaseRegisterRateFilter").value || "";
+  renderPurchaseRegisterWorkspace();
+};
+if ($("#purchaseRegisterClearFiltersBtn")) $("#purchaseRegisterClearFiltersBtn").onclick = () => {
+  purchaseRegisterFilters = { q: "", rate: "" };
+  if ($("#purchaseRegisterSearch")) $("#purchaseRegisterSearch").value = "";
+  if ($("#purchaseRegisterRateFilter")) $("#purchaseRegisterRateFilter").value = "";
+  renderPurchaseRegisterWorkspace();
+};

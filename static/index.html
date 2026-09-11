@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bank2Tally Suite v1.7.0</title><link rel="stylesheet" href="/style.css?v=1.7.0"><link rel="stylesheet" href="/review-fixes.css?v=1.7.0"><link rel="stylesheet" href="/v165.css?v=1.7.67-mobile-photo-single-column">
+<title>Bank2Tally Suite v1.7.0</title><link rel="stylesheet" href="/style.css?v=1.7.0"><link rel="stylesheet" href="/review-fixes.css?v=1.7.0"><link rel="stylesheet" href="/v165.css?v=1.7.67-mobile-photo-single-column"><link rel="stylesheet" href="/purchase-register.css?v=1.0.0">
 </head>
 <body>
   <header><div class="brand-area"><img class="brand-logo" src="/bank2tally-logo.png?v=1.7.0" alt="Bank2Tally"><div><div class="brand">Bank<span>2</span>Tally</div><p>Offline statement review and TallyPrime voucher preparation</p></div></div><div class="header-actions"><button id="openTallyConnector" class="header-button tally-corner-button" type="button"><i></i><span id="dashboardTallyStatus">Connect Tally</span></button><div id="customerBadge" class="customer-badge hidden"><small id="customerBusiness"></small><strong id="customerName"></strong></div><div class="credit-pill"><small id="licensePlan">Trial</small><strong><span id="creditRemaining">50</span> credits</strong></div><button id="licenseBtn" class="header-button primary-small">Buy / Activate</button><div class="offline"><i></i> Data stays on this computer</div><button id="logoutBtn" class="header-button hidden">Logout</button><button id="refreshBtn" class="header-button" title="Refresh Bank2Tally">↻ Refresh</button><button id="closeBtn" class="header-button danger" title="Close Bank2Tally">Close</button></div></header>
@@ -144,7 +144,7 @@
     <form method="dialog">
       <div class="gst-heading gst-main-heading"><div><h2 id="gstModuleTitle">GST Reconciliation</h2><p id="gstModuleSubtitle">Import files downloaded from the GST Portal. Your GST data stays on this computer.</p></div><div class="gst-heading-actions"><button id="gstRefreshBtn" type="button" class="secondary gst-refresh-button" title="Refresh">↻</button><button value="cancel" class="secondary">Back to Dashboard</button></div></div>
       <div class="gst-import-row">
-        <label>Return Type<select id="gstReturnType"><option>GSTR-1 / Sales Register</option><option>GSTR-1 JSON (GST Portal)</option><option>MARG Backup / Sales Register</option></select></label>
+        <label>Return Type<select id="gstReturnType"><option>GSTR-1 / Sales Register</option><option>GSTR-1 JSON (GST Portal)</option><option>MARG Backup / Sales Register</option><option>Sales Register – Sadhan R</option></select></label>
         <label><span id="gstFileLabel">GST File</span><input id="gstFileInput" type="file" multiple accept=".json,.xlsx,.xlsm,.xls,.csv,.zip,.mbk,.pdf"></label>
         <button id="gstImportBtn" type="button" class="primary">Import GST File</button>
       </div>
@@ -161,6 +161,7 @@
           <button id="purchaseView2aBtn" type="button" class="purchase-view-tab active">GSTR-2A Sheet</button>
           <button id="purchaseView2bBtn" type="button" class="purchase-view-tab">GSTR-2B Sheet</button>
           <button id="purchaseViewMatchBtn" type="button" class="purchase-view-tab">2A vs 2B Match Result</button>
+          <button id="purchaseViewRegisterBtn" type="button" class="purchase-view-tab">Purchase Register</button>
         </div>
         <div class="purchase-rebuild-placeholder">
           <section id="purchase2aWorkspace" class="purchase2a-workspace">
@@ -174,6 +175,45 @@
         <section id="purchase2bWorkspace" class="purchase2b-workspace hidden">
           <h3>GSTR-2B Invoice Sheet <strong id="purchase2bSheetCount">0</strong></h3>
           <div id="purchase2bSheetRows" class="purchase-table-scroll"></div>
+        </section>
+        <section id="purchaseRegisterWorkspace" class="purchase-register-workspace hidden">
+          <div id="purchaseRegisterEmpty" class="purchase-register-empty">
+            <div class="purchase-rebuild-icon">PR</div>
+            <h3>Purchase Register</h3>
+            <p>Import a Purchase Register Excel file to review books invoices. This register is stored and displayed on its own.</p>
+          </div>
+          <div id="purchaseRegisterContent">
+            <div class="purchase-register-import-row">
+              <label>Purchase Register Excel<input id="purchaseRegisterFileInput" type="file" multiple accept=".xlsx,.xlsm,.xls,.csv,.zip,.json"></label>
+              <button id="purchaseRegisterImportBtn" type="button" class="primary">Import Purchase Register</button>
+              <button id="purchaseRegisterClearBtn" type="button" class="secondary danger-soft">Clear Purchase Register</button>
+              <span id="purchaseRegisterStatus" class="recon-import-chip warn">Purchase Register: Not Imported</span>
+            </div>
+            <section class="purchase-register-summary-card">
+              <h3>Purchase Register Summary <strong id="purchaseRegisterCount">0</strong></h3>
+              <div class="purchase-register-table-wrap"><table>
+                <thead><tr><th>Particulars</th><th>Count</th><th>Taxable</th><th>IGST</th><th>CGST</th><th>SGST</th><th>CESS</th><th>Invoice Value</th></tr></thead>
+                <tbody id="purchaseRegisterSummaryRows"></tbody>
+              </table></div>
+            </section>
+            <div class="purchase-register-tools">
+              <input id="purchaseRegisterSearch" class="purchase-box-search" placeholder="Search GSTIN, party, invoice no., date or HSN">
+              <select id="purchaseRegisterRateFilter"><option value="">All GST Rates</option><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select>
+              <button id="purchaseRegisterClearFiltersBtn" type="button" class="secondary">Clear Filters</button>
+              <button id="purchaseRegisterExportBtn" type="button" class="secondary">Export Excel</button>
+            </div>
+            <div class="purchase-register-totals">
+              <span>Taxable <strong id="purchaseRegisterTaxable">0.00</strong></span>
+              <span>IGST <strong id="purchaseRegisterIgst">0.00</strong></span>
+              <span>CGST <strong id="purchaseRegisterCgst">0.00</strong></span>
+              <span>SGST <strong id="purchaseRegisterSgst">0.00</strong></span>
+            </div>
+            <div id="purchaseRegisterInvoiceRows" class="purchase-table-scroll"></div>
+            <details id="purchaseRegisterNotesPanel" class="purchase-register-notes hidden" open>
+              <summary>Credit Note, Debit Note &amp; Amendment <strong id="purchaseRegisterNoteCount">0</strong></summary>
+              <div id="purchaseRegisterNoteRows" class="purchase-table-scroll"></div>
+            </details>
+          </div>
         </section>
         <div class="purchase-load-status">
           <span id="gstr2aLoadStatus" class="recon-import-chip warn">GSTR-2A: Not Imported</span>
@@ -1184,5 +1224,5 @@
       </div>
     </div>
   </dialog>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><script src="/app.js?v=1.7.66-photo-invoice"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><script src="/app.js?v=1.7.71-sadhan-r-restore-ui"></script>
 </body></html>

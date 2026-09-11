@@ -1,0 +1,27 @@
+/* Independent Purchase Register tab. */
+.purchase-register-workspace{display:grid;gap:10px;margin-bottom:10px}
+.purchase-register-workspace.hidden{display:none!important}
+.purchase-register-empty{text-align:center;padding:48px 18px;border:1px dashed #c8d9ec;border-radius:12px;background:#fff}
+.purchase-register-empty h3{margin:8px 0 6px;color:#123f72}
+.purchase-register-empty p{margin:0 auto;max-width:640px;color:#54728f}
+.purchase-register-import-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.purchase-register-import-row label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:#334155}
+.purchase-register-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.purchase-register-totals{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#335679}
+.purchase-register-totals strong{color:#0b5cab}
+.purchase-register-summary-card{border:1px solid #c8d9ec;border-radius:11px;background:#fff;overflow:hidden}
+.purchase-register-summary-card h3{margin:0;padding:9px 12px;background:linear-gradient(90deg,#eaf3fb,#f4f8fc);font-size:16px;color:#123f72}
+.purchase-register-table-wrap{width:100%;overflow:auto}
+.purchase-register-table-wrap table{width:100%;border-collapse:collapse;font-size:11px}
+.purchase-register-table-wrap th,.purchase-register-table-wrap td{padding:7px 9px;border-bottom:1px solid #e6edf5;text-align:left;white-space:nowrap}
+.purchase-register-table-wrap thead th{background:#f2f6fb;color:#536985;font-size:10px;text-transform:uppercase}
+.purchase-register-table-wrap .money,.purchase-register-summary-card td:not(:first-child){text-align:right}
+.purchase-register-total th,.purchase-register-total td{font-weight:800}
+.purchase-register-notes{border:1px solid #c8d9ec;border-radius:11px;background:#fff;padding:0 0 10px}
+.purchase-register-notes>summary{padding:10px 12px;font-weight:800;color:#123f72;cursor:pointer}
+.purchase-register-notes .purchase-table-scroll{margin:0 12px;max-height:360px}
+.purchase-register-workspace .purchase-table-scroll{max-height:520px;overflow:auto;border:1px solid #cfdeed;border-radius:10px;background:#fff}
+.purchase-register-workspace table{width:100%;border-collapse:collapse;font-size:11px}
+.purchase-register-workspace th,.purchase-register-workspace td{padding:7px 9px;border-bottom:1px solid #e6edf5;text-align:left;white-space:nowrap}
+.purchase-register-workspace thead th{background:#f2f6fb;color:#536985;font-size:10px;text-transform:uppercase}
+.purchase-register-workspace .money{text-align:right}
